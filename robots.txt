@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://broke-n-built-services.onrender.com/sitemap.xml

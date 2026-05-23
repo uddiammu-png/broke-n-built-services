@@ -1,0 +1,18 @@
+{
+  "name": "broke-n-built-services-website",
+  "version": "1.0.0",
+  "description": "BROKE N BUILT SERVICES - Renovation & Space Transformation Website with AI Chatbot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["renovation", "interior-design", "bangalore", "construction"],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.18.2",
+    "openai": "^4.0.0"
+  }
+}
