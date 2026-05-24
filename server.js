@@ -499,6 +499,106 @@ app.get('/api/admin/email-status', requireAdmin, (req, res) => {
   res.json({ configured: isEmailConfigured, host: emailConfig.host, to: emailConfig.to });
 });
 
+// ====== SMTP DIAGNOSTIC ENDPOINT ======
+app.get('/api/admin/diagnose-email', requireAdmin, async (req, res) => {
+  const diagnostic = {
+    configured: isEmailConfigured,
+    host: emailConfig.host,
+    port: emailConfig.port,
+    user: emailConfig.user,
+    to: emailConfig.to,
+    from: emailConfig.from,
+    passLength: emailConfig.pass ? emailConfig.pass.length : 0,
+    passHasSpaces: emailConfig.pass ? emailConfig.pass.includes(' ') : false
+  };
+
+  if (!isEmailConfigured) {
+    diagnostic.error = 'Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS.';
+    return res.json(diagnostic);
+  }
+
+  // Test SMTP connection
+  try {
+    const nodemailer = require('nodemailer');
+
+    const transporter = nodemailer.createTransport({
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.port === 465,
+      auth: { user: emailConfig.user, pass: emailConfig.pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 10000
+    });
+
+    // Test 1: Verify SMTP connection
+    diagnostic.connectionTest = { label: 'SMTP Connection (verify())' };
+    try {
+      const start = Date.now();
+      await transporter.verify();
+      diagnostic.connectionTest.passed = true;
+      diagnostic.connectionTest.ms = Date.now() - start;
+    } catch (err) {
+      diagnostic.connectionTest.passed = false;
+      diagnostic.connectionTest.error = err.message;
+      diagnostic.connectionTest.code = err.code || null;
+      diagnostic.connectionTest.command = err.command || null;
+    }
+
+    // Test 2: Send a test email
+    diagnostic.sendTest = { label: 'Send Test Email' };
+    try {
+      const start = Date.now();
+      const info = await transporter.sendMail({
+        from: `"SMTP Diagnostic" <${emailConfig.from}>`,
+        to: emailConfig.to,
+        subject: `🧪 SMTP Diagnostic Test — ${new Date().toLocaleString()}`,
+        text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, the SMTP email system is working correctly from the server.\n\nSent at: ${new Date().toISOString()}`
+      });
+      diagnostic.sendTest.passed = true;
+      diagnostic.sendTest.ms = Date.now() - start;
+      diagnostic.sendTest.messageId = info.messageId;
+    } catch (err) {
+      diagnostic.sendTest.passed = false;
+      diagnostic.sendTest.error = err.message;
+      diagnostic.sendTest.code = err.code || null;
+      diagnostic.sendTest.command = err.command || null;
+    }
+
+    // Test 3: Attempt WITHOUT spaces in password (in case Gmail rejects spaces)
+    if (emailConfig.pass && emailConfig.pass.includes(' ')) {
+      diagnostic.noSpacesTest = { label: 'Password without spaces' };
+      try {
+        const noSpaceTransporter = nodemailer.createTransport({
+          host: emailConfig.host,
+          port: emailConfig.port,
+          secure: emailConfig.port === 465,
+          auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 10000
+        });
+        const start = Date.now();
+        await noSpaceTransporter.verify();
+        diagnostic.noSpacesTest.passed = true;
+        diagnostic.noSpacesTest.ms = Date.now() - start;
+        diagnostic.noSpacesTest.note = 'Password works without spaces — update EMAIL_PASS to remove spaces';
+      } catch (err) {
+        diagnostic.noSpacesTest.passed = false;
+        diagnostic.noSpacesTest.error = err.message;
+      }
+    }
+
+    diagnostic.conclusion = diagnostic.connectionTest.passed && diagnostic.sendTest.passed
+      ? '✅ SMTP is fully working. Check your Spam/Promotions folder — emails may be filtered.'
+      : '❌ SMTP has issues. See test results above for details. You may need to check: the app password, Gmail security settings, or Render\'s outbound network.';
+
+  } catch (err) {
+    diagnostic.criticalError = err.message;
+    diagnostic.conclusion = '❌ Fatal error running diagnostic.';
+  }
+
+  res.json(diagnostic);
+});
+
 // ====== CONTACT FORM ENDPOINT ======
 app.post('/api/contact', async (req, res) => {
   const { name, email, phone, service, message } = req.body;
