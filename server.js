@@ -195,6 +195,24 @@ SERVICES:
 
 ABOUT: The company transforms damaged, outdated, and incomplete spaces into functional, modern, and visually impressive environments. They focus on quality craftsmanship, smart design, and timely execution for residential, commercial, and workspace projects.
 
+PORTFOLIO / PROJECTS (150+ completed projects):
+
+Residential Projects:
+1. KSR CORDILIA - Premium residential apartment complex with modern finishes, false ceiling installations, and complete interior fit-out.
+2. SHARADHA ENCLAVE - Gated community enclave with comprehensive renovation, painting, flooring, and electrical works across multiple units.
+3. VARS ALLSEASONS - All-seasons residential complex featuring custom interiors, modular kitchen installations, and complete space transformation.
+4. ZANITH RESIDENCE - High-end residential project with premium painting, decorative finishes, custom wardrobes, and luxury interior solutions.
+5. VARIO - Modern residential development with end-to-end renovation services including plumbing, electrical, and interior finishing.
+
+Commercial Projects:
+1. Karle Infra Pvt Ltd - Office interior fit-out, partition works, false ceiling with integrated lighting, and complete electrical solutions for corporate infrastructure.
+2. Soliza Partners - Professional office space transformation with modern workstations, glass partitions, reception area design, and premium finishing.
+3. Dental Levelle - Complete interior fit-out for a dental clinic including reception, treatment rooms, false ceiling, plumbing, and hygienic finishing.
+4. Karle Home Pvt Ltd - Large-scale residential development project with comprehensive renovation works, painting, flooring, and turnkey interior solutions.
+5. Northstar Elements - Commercial space transformation with modern office interiors, custom furniture, partition systems, and complete MEP works.
+
+When asked about projects or portfolio, enthusiastically share details about relevant projects. Mention we have 5 residential and 5 commercial projects showcased on our website.
+
 TONE: Friendly, professional, enthusiastic about helping customers transform their spaces. Keep responses concise but helpful. Use emojis sparingly.`;
 
       const model = isOpenRouter ? 'openrouter/free' : 'gpt-4o-mini';
@@ -260,7 +278,7 @@ function generateSmartResponse(message) {
       <li>📋 <strong>Service inquiries</strong> — learn about our offerings</li>
       <li>💰 <strong>Pricing info</strong> — get cost estimates</li>
       <li>📅 <strong>Book a visit</strong> — schedule a free consultation</li>
-      <li>🏠 <strong>Design advice</strong> — discuss your project ideas</li>
+      <li>🏠 <strong>Portfolio</strong> — see our 150+ completed projects</li>
     </ul>
     <p>What would you like to know? 😊</p>`;
   }
@@ -343,10 +361,34 @@ function generateSmartResponse(message) {
     <p>Have a great day! 😊</p>`;
   }
   
+  if (msg.includes('project') || msg.includes('portfolio') || msg.includes('work done') || msg.includes('completed') || msg.includes('past work') || msg.includes('experience') || msg.includes('cordilia') || msg.includes('sharadha') || msg.includes('allseasons') || msg.includes('zanith') || msg.includes('vario') || msg.includes('karle') || msg.includes('soliza') || msg.includes('levelle') || msg.includes('northstar')) {
+    return `<p>🏗️ <strong>Our Project Portfolio</strong></p>
+    <p>We've completed <strong>150+ projects</strong> across Bangalore! Here's a selection:</p>
+    <p><strong>🏠 Residential:</strong></p>
+    <ul>
+      <li><strong>KSR CORDILIA</strong> — Premium apartment complex</li>
+      <li><strong>SHARADHA ENCLAVE</strong> — Gated community enclave</li>
+      <li><strong>VARS ALLSEASONS</strong> — Residential complex</li>
+      <li><strong>ZANITH RESIDENCE</strong> — Premium residences</li>
+      <li><strong>VARIO</strong> — Modern residential development</li>
+    </ul>
+    <p><strong>🏢 Commercial:</strong></p>
+    <ul>
+      <li><strong>Karle Infra Pvt Ltd</strong> — Corporate infrastructure</li>
+      <li><strong>Soliza Partners</strong> — Corporate office</li>
+      <li><strong>Dental Levelle</strong> — Dental clinic fit-out</li>
+      <li><strong>Karle Home Pvt Ltd</strong> — Real estate development</li>
+      <li><strong>Northstar Elements</strong> — Commercial space</li>
+    </ul>
+    <p>📸 View full details at <strong>broke-n-built-services.onrender.com/projects</strong></p>
+    <p>📞 Call <strong>+91 7019300855</strong> to discuss your project!</p>`;
+  }
+  
   return `<p>Thank you for reaching out to <strong>BROKE N BUILT SERVICES</strong>! 😊</p>
   <p>Here's how we can help:</p>
   <ul>
     <li>🏠 <strong>Services:</strong> Renovation, false ceiling, painting, flooring, partitions, electrical/plumbing, custom interiors, and complete transformations</li>
+    <li>🏗️ <strong>Portfolio:</strong> 150+ projects completed — residential & commercial</li>
     <li>📍 <strong>Location:</strong> Bangalore, India</li>
     <li>📞 <strong>Call:</strong> +91 7019300855</li>
     <li>📧 <strong>Email:</strong> brokenbuiltservices@gmail.com</li>
