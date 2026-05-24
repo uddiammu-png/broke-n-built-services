@@ -521,10 +521,10 @@ app.post('/api/contact', async (req, res) => {
     message: 'Thank you! We have received your inquiry and will contact you shortly.'
   });
 
-  // ====== BACKGROUND TASKS (fire-and-forget after response) ======
+  // ====== BACKGROUND TASKS (fire-and-forget — not awaited but still run in same process) ======
 
   // Save backup file asynchronously
-  setImmediate(async () => {
+  (async () => {
     try {
       const inquiriesDir = path.join(__dirname, 'inquiries');
       if (!fs.existsSync(inquiriesDir)) fs.mkdirSync(inquiriesDir, { recursive: true });
@@ -532,44 +532,43 @@ app.post('/api/contact', async (req, res) => {
     } catch (err) {
       console.error('Failed to save backup inquiry file:', err.message);
     }
-  });
+  })();
 
   // Send email notification in background
-  setImmediate(() => {
-    sendEmailNotification(inquiry).catch(err =>
-      console.error('Background email failed:', err.message)
-    );
+  sendEmailNotification(inquiry).catch(err => {
+    console.error('Background email failed:', err.message);
   });
 
   // Sync inquiry to standalone admin server (if configured) — in background
   if (ADMIN_SYNC_URL) {
-    setImmediate(() => {
-      try {
-        const https = require('https');
-        const http = require('http');
-        const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
-        const body = JSON.stringify(inquiry);
-        const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
-        const syncReq = transport.request(url.toString(), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body),
-            ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
-          },
-          timeout: 5000
-        }, (syncRes) => {
-          console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
-        });
-        syncReq.on('error', (err) => {
-          console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-        });
-        syncReq.write(body);
-        syncReq.end();
-      } catch (err) {
+    console.log('🔄 Syncing inquiry to admin server:', ADMIN_SYNC_URL);
+    try {
+      const https = require('https');
+      const http = require('http');
+      const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
+      const body = JSON.stringify(inquiry);
+      const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
+      const syncReq = transport.request(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
+        },
+        timeout: 5000
+      }, (syncRes) => {
+        console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
+      });
+      syncReq.on('error', (err) => {
         console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-      }
-    });
+      });
+      syncReq.write(body);
+      syncReq.end();
+    } catch (err) {
+      console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
+    }
+  } else if (process.env.NODE_ENV === 'production') {
+    console.log('⚠️  ADMIN_SYNC_URL not set — inquiry NOT synced to admin server');
   }
 });
 
