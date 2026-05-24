@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us | BROKE N BUILT SERVICES - Renovation Bangalore</title>
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="Contact Us | BROKE N BUILT SERVICES - Renovation Bangalore" />
+  <meta name="description" content="Contact Broke N Built Services for a free consultation. Call +91 7019300855 or email brokenbuiltservices@gmail.com. Located in Bangalore, India." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://broke-n-built-services.onrender.com/contact" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://broke-n-built-services.onrender.com/contact" />
+  <meta property="og:title" content="Contact Us | BROKE N BUILT SERVICES" />
+  <meta property="og:description" content="Get in touch for a free consultation and quote." />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .page-hero {
+      padding: 140px 0 60px;
+      background: var(--darker);
+      text-align: center;
+      position: relative;
+    }
+    .page-hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.2), transparent);
+    }
+    .page-hero h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .page-hero p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .contact-page {
+      padding: 80px 0;
+    }
+    @media (max-width: 768px) {
+      .page-hero h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ====== NAVBAR ====== -->
+  <nav class="navbar scrolled" id="navbar">
+    <div class="container">
+      <a href="/" class="logo">
+        <span class="logo-icon"><i class="fas fa-hammer"></i></span>
+        <div class="logo-text">
+          <span class="logo-title">BROKE N BUILT</span>
+          <span class="logo-sub">SERVICES</span>
+        </div>
+      </a>
+      <div class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </div>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/services">Services</a></li>
+        <li><a href="/contact" class="active">Contact</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ====== PAGE HEADER ====== -->
+  <section class="page-hero">
+    <div class="container">
+      <span class="section-tag">Get In Touch</span>
+      <h1>Let's Build Something <span class="highlight">Extraordinary</span></h1>
+      <p>Ready to transform your space? Reach out for a free consultation and quote.</p>
+    </div>
+  </section>
+
+  <!-- ====== CONTENT ====== -->
+  <section class="contact-page">
+    <div class="container">
+      <div class="contact-content">
+        <div class="contact-info">
+          <div class="contact-card">
+            <div class="contact-card-icon"><i class="fas fa-map-marker-alt"></i></div>
+            <h4>Our Location</h4>
+            <p>
+              #8, Adibyraveshwara Nilaya, 3rd Floor,<br />
+              Green Wood Street, Cheemasandra,<br />
+              Virgonagar Post, Bangalore-560049
+            </p>
+            <a href="https://maps.google.com/?q=#8+Adibyraveshwara+Nilaya+Green+Wood+Street+Cheemasandra+Bangalore+560049" target="_blank" class="contact-link">
+              <i class="fas fa-external-link-alt"></i> View on Google Maps
+            </a>
+          </div>
+          <div class="contact-card">
+            <div class="contact-card-icon"><i class="fas fa-phone-alt"></i></div>
+            <h4>Phone</h4>
+            <a href="tel:+917019300855" class="contact-link contact-link-large">+91 7019300855</a>
+          </div>
+          <div class="contact-card">
+            <div class="contact-card-icon"><i class="fas fa-envelope"></i></div>
+            <h4>Email</h4>
+            <a href="mailto:brokenbuiltservices@gmail.com" class="contact-link contact-link-large">brokenbuiltservices@gmail.com</a>
+          </div>
+          <div class="contact-card">
+            <div class="contact-card-icon"><i class="fas fa-clock"></i></div>
+            <h4>Working Hours</h4>
+            <p>Mon - Sat: 9:00 AM - 7:00 PM<br />Sunday: By Appointment</p>
+          </div>
+          <div class="contact-card">
+            <div class="contact-card-icon"><i class="fas fa-file-invoice"></i></div>
+            <h4>GST Number</h4>
+            <p style="font-size:1rem;font-weight:600;color:var(--primary);letter-spacing:1px;">29ABFFB0879G1Z9</p>
+          </div>
+        </div>
+        <form class="contact-form" id="contactForm">
+          <h3>Send Us a Message</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Your Name</label>
+              <input type="text" id="name" name="name" placeholder="Enter your name" required />
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" name="email" placeholder="Enter your email" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Mobile Number</label>
+              <input type="tel" id="phone" name="phone" placeholder="Enter your mobile number" required />
+            </div>
+            <div class="form-group">
+              <label for="service">Service Interested In</label>
+              <select id="service" name="service">
+                <option value="">Select a service</option>
+                <option value="renovation">Renovation Works</option>
+                <option value="false-ceiling">False Ceiling</option>
+                <option value="painting">Painting &amp; Finishing</option>
+                <option value="flooring">Flooring Solutions</option>
+                <option value="partition">Partition Works</option>
+                <option value="electrical">Electrical &amp; Plumbing</option>
+                <option value="interiors">Custom Interiors</option>
+                <option value="repair">Repair &amp; Maintenance</option>
+                <option value="transformation">Complete Transformation</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="message">Your Message</label>
+            <textarea id="message" name="message" rows="5" placeholder="Describe your project or requirements..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-submit">
+            <i class="fas fa-paper-plane"></i> Send Message
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== MAP ====== -->
+  <section class="contact" style="padding:40px 0 80px;">
+    <div class="container">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+        <div style="padding:24px 24px 0;">
+          <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:4px;">Find Us on the Map</h3>
+          <p style="color:var(--text-muted);font-size:0.9rem;">We serve all areas of Bangalore and surrounding regions.</p>
+        </div>
+        <div style="padding:16px 24px 24px;">
+          <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3887.123!2d77.682!3d13.020!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTPCsDAxJzEyLjAiTiA3N8KwNDAnNTUuMiJF!5e0!3m2!1sen!2sin!4v1"
+            width="100%" 
+            height="350" 
+            style="border:0;border-radius:var(--radius);" 
+            allowfullscreen="" 
+            loading="lazy" 
+            referrerpolicy="no-referrer-when-downgrade"
+            title="BROKE N BUILT SERVICES Location">
+          </iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-icon"><i class="fas fa-hammer"></i></span>
+            <div class="logo-text">
+              <span class="logo-title">BROKE N BUILT</span>
+              <span class="logo-sub">SERVICES</span>
+            </div>
+          </div>
+          <p>Transforming damaged, outdated, and incomplete spaces into functional, modern, and visually impressive environments.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/services">Services</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Our Services</h4>
+          <ul>
+            <li><a href="/services">Renovation Works</a></li>
+            <li><a href="/services">False Ceiling</a></li>
+            <li><a href="/services">Painting &amp; Finishing</a></li>
+            <li><a href="/services">Flooring Solutions</a></li>
+            <li><a href="/services">Custom Interiors</a></li>
+          </ul>
+        </div>
+        <div class="footer-contact-info">
+          <h4>Contact Us</h4>
+          <p><i class="fas fa-phone-alt"></i> <a href="tel:+917019300855">+91 7019300855</a></p>
+          <p><i class="fas fa-envelope"></i> <a href="mailto:brokenbuiltservices@gmail.com">brokenbuiltservices@gmail.com</a></p>
+          <p><i class="fas fa-map-marker-alt"></i> Bangalore, India</p>
+          <p><i class="fas fa-file-invoice"></i> GST: 29ABFFB0879G1Z9</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 BROKE N BUILT SERVICES. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ====== AI CHATBOT ====== -->
+  <div class="chatbot-widget" id="chatbotWidget">
+    <button class="chatbot-toggle" id="chatbotToggle" aria-label="Open chat">
+      <i class="fas fa-comment-dots" id="chatIcon"></i>
+      <i class="fas fa-times" id="closeIcon" style="display:none;"></i>
+    </button>
+    <div class="chatbot-panel" id="chatbotPanel">
+      <div class="chatbot-header">
+        <div class="chatbot-header-info">
+          <div class="chatbot-avatar"><i class="fas fa-robot"></i></div>
+          <div>
+            <h4>BROKE N BUILT AI</h4>
+            <span class="chatbot-status">Online</span>
+          </div>
+        </div>
+        <button class="chatbot-minimize" id="chatbotMinimize" aria-label="Minimize">
+          <i class="fas fa-minus"></i>
+        </button>
+      </div>
+      <div class="chatbot-messages" id="chatbotMessages">
+        <div class="message message-bot">
+          <div class="message-content">
+            <p>👋 Welcome to BROKE N BUILT SERVICES!</p>
+            <p>Fill out the form above or chat with me directly. How can I help?</p>
+          </div>
+        </div>
+      </div>
+      <div class="chatbot-typing" id="chatbotTyping" style="display:none;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="chatbot-input-area">
+        <div class="chatbot-suggestions" id="chatbotSuggestions">
+          <button class="suggestion-chip" data-text="I want to book a site visit">Book Visit</button>
+          <button class="suggestion-chip" data-text="What are your service charges?">Pricing</button>
+          <button class="suggestion-chip" data-text="Call me back at this number">Request Callback</button>
+        </div>
+        <div class="chatbot-input-row">
+          <input type="text" id="chatbotInput" placeholder="Type your message..." autocomplete="off" />
+          <button id="chatbotSend" aria-label="Send"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

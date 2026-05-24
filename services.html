@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Services | BROKE N BUILT SERVICES - Renovation Bangalore</title>
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="Our Services | BROKE N BUILT SERVICES - Renovation Bangalore" />
+  <meta name="description" content="Explore our comprehensive renovation services: Renovation, False Ceiling, Painting, Flooring, Partitions, Electrical & Plumbing, Custom Interiors, and Complete Transformation." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://broke-n-built-services.onrender.com/services" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://broke-n-built-services.onrender.com/services" />
+  <meta property="og:title" content="Our Services | BROKE N BUILT SERVICES" />
+  <meta property="og:description" content="Comprehensive renovation services for your home or office." />
+  <meta property="og:image" content="/images/interior-design.jpg" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .page-hero {
+      padding: 140px 0 60px;
+      background: var(--darker);
+      text-align: center;
+      position: relative;
+    }
+    .page-hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.2), transparent);
+    }
+    .page-hero h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .page-hero p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .services-page {
+      padding: 80px 0;
+    }
+    .service-detail {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 30px;
+      transition: var(--transition);
+    }
+    .service-detail:hover {
+      border-color: rgba(249, 115, 22, 0.2);
+      box-shadow: var(--shadow-glow);
+    }
+    .service-detail-image {
+      min-height: 300px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+    .service-detail-content {
+      padding: 36px;
+    }
+    .service-detail-content .service-icon {
+      width: 52px;
+      height: 52px;
+      background: rgba(249, 115, 22, 0.1);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+      color: var(--primary);
+    }
+    .service-detail-content h3 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .service-detail-content p {
+      color: var(--text-muted);
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .service-detail-content ul {
+      list-style: none;
+      padding: 0;
+    }
+    .service-detail-content ul li {
+      padding: 6px 0;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .service-detail-content ul li::before {
+      content: '\f00c';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      color: var(--primary);
+      font-size: 0.8rem;
+    }
+    @media (max-width: 768px) {
+      .service-detail { grid-template-columns: 1fr; }
+      .service-detail-image { min-height: 200px; }
+      .page-hero h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ====== NAVBAR ====== -->
+  <nav class="navbar scrolled" id="navbar">
+    <div class="container">
+      <a href="/" class="logo">
+        <span class="logo-icon"><i class="fas fa-hammer"></i></span>
+        <div class="logo-text">
+          <span class="logo-title">BROKE N BUILT</span>
+          <span class="logo-sub">SERVICES</span>
+        </div>
+      </a>
+      <div class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </div>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/services" class="active">Services</a></li>
+        <li><a href="/contact">Contact</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ====== PAGE HEADER ====== -->
+  <section class="page-hero">
+    <div class="container">
+      <span class="section-tag">What We Do</span>
+      <h1>Comprehensive <span class="highlight">Services</span></h1>
+      <p>End-to-end renovation and transformation solutions for every space.</p>
+    </div>
+  </section>
+
+  <!-- ====== SERVICES LIST ====== -->
+  <section class="services-page">
+    <div class="container">
+      <!-- Service 1 -->
+      <div class="service-detail">
+        <div class="service-detail-image" style="background-image: url('/images/about-renovation.jpg');"></div>
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-house-chimney"></i></div>
+          <h3>Renovation Works</h3>
+          <p>Complete renovation of damaged, outdated, or incomplete spaces. We breathe new life into your property with comprehensive structural improvements, modern finishes, and functional redesigns.</p>
+          <ul>
+            <li>Structural repairs &amp; restoration</li>
+            <li>Complete interior demolition &amp; rebuild</li>
+            <li>Modern finishing &amp; upgrades</li>
+            <li>Space reconfiguration &amp; optimization</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Service 2 -->
+      <div class="service-detail">
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-border-all"></i></div>
+          <h3>False Ceiling Installation</h3>
+          <p>Modern false ceiling designs that enhance aesthetics, improve acoustics, and provide better insulation. We offer a variety of materials and designs to suit any space.</p>
+          <ul>
+            <li>Gypsum board ceilings</li>
+            <li>POP (Plaster of Paris) decorative designs</li>
+            <li>Metal grid ceilings for offices</li>
+            <li>Wooden panel ceilings</li>
+            <li>Integrated LED lighting solutions</li>
+          </ul>
+        </div>
+        <div class="service-detail-image" style="background-image: url('/images/interior-design.jpg');"></div>
+      </div>
+
+      <!-- Service 3 -->
+      <div class="service-detail">
+        <div class="service-detail-image" style="background-image: url('/images/painting.jpg');"></div>
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-paint-roller"></i></div>
+          <h3>Painting &amp; Finishing</h3>
+          <p>Premium painting and surface finishing services that transform your walls and surfaces with flawless, long-lasting results. Using high-quality paints and professional techniques.</p>
+          <ul>
+            <li>Interior wall painting</li>
+            <li>Exterior weatherproof painting</li>
+            <li>Texture &amp; decorative finishes</li>
+            <li>Waterproofing coatings</li>
+            <li>Wallpaper installation</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Service 4 -->
+      <div class="service-detail">
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-th"></i></div>
+          <h3>Flooring Solutions</h3>
+          <p>Expert flooring installation and finishing services for all types of spaces. We help you choose the right flooring material that balances aesthetics, durability, and budget.</p>
+          <ul>
+            <li>Ceramic &amp; vitrified tiles</li>
+            <li>Wooden &amp; laminate flooring</li>
+            <li>Polished concrete floors</li>
+            <li>Vinyl &amp; luxury vinyl tile (LVT)</li>
+            <li>Stone &amp; marble flooring</li>
+          </ul>
+        </div>
+        <div class="service-detail-image" style="background-image: url('/images/flooring.jpg');"></div>
+      </div>
+
+      <!-- Service 5 -->
+      <div class="service-detail">
+        <div class="service-detail-image" style="background-image: url('/images/construction-team.jpg');"></div>
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-layer-group"></i></div>
+          <h3>Partition Works</h3>
+          <p>Custom partition solutions for homes and offices. We create functional divisions that enhance privacy, improve space utilization, and add aesthetic value.</p>
+          <ul>
+            <li>Glass partition walls</li>
+            <li>Drywall partition systems</li>
+            <li>Modular office partitions</li>
+            <li>Decorative room dividers</li>
+            <li>Soundproof partitions</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Service 6 -->
+      <div class="service-detail">
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-bolt"></i></div>
+          <h3>Electrical &amp; Plumbing</h3>
+          <p>Complete electrical and plumbing solutions for renovation and new construction. Our certified team handles everything with safety, quality, and code compliance.</p>
+          <ul>
+            <li>Complete electrical wiring &amp; rewiring</li>
+            <li>Switchboard &amp; fixture installation</li>
+            <li>Plumbing pipe fitting &amp; repairs</li>
+            <li>Bathroom &amp; kitchen plumbing</li>
+            <li>Water heater &amp; pump installation</li>
+          </ul>
+        </div>
+        <div class="service-detail-image" style="background-image: url('/images/kitchen-renovation.jpg');"></div>
+      </div>
+
+      <!-- Service 7 -->
+      <div class="service-detail">
+        <div class="service-detail-image" style="background-image: url('/images/interior-design.jpg');"></div>
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-couch"></i></div>
+          <h3>Custom Interiors</h3>
+          <p>Bespoke interior design and carpentry solutions tailored to your style and needs. From modular kitchens to custom wardrobes, we craft spaces that reflect your personality.</p>
+          <ul>
+            <li>Modular kitchen design &amp; installation</li>
+            <li>Custom wardrobes &amp; cabinets</li>
+            <li>Custom furniture &amp; upholstery</li>
+            <li>Office workstation design</li>
+            <li>Reception &amp; lobby interiors</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Service 8 -->
+      <div class="service-detail">
+        <div class="service-detail-content">
+          <div class="service-icon"><i class="fas fa-wrench"></i></div>
+          <h3>Repair &amp; Maintenance</h3>
+          <p>Ongoing repair and maintenance services to keep your property in pristine condition. Quick response, reliable service, and quality workmanship for all your repair needs.</p>
+          <ul>
+            <li>Structural crack repairs</li>
+            <li>Plumbing leak fixes</li>
+            <li>Electrical fault repairs</li>
+            <li>Paint touch-ups &amp; wall repairs</li>
+            <li>Regular maintenance contracts</li>
+          </ul>
+        </div>
+        <div class="service-detail-image" style="background-image: url('/images/construction-team.jpg');"></div>
+      </div>
+
+      <!-- Service 9 -->
+      <div class="service-detail" style="border-color: rgba(249, 115, 22, 0.3);">
+        <div class="service-detail-image" style="background-image: url('/images/hero-bg.jpg');"></div>
+        <div class="service-detail-content">
+          <div class="service-icon" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--dark);"><i class="fas fa-magic"></i></div>
+          <h3>Complete Transformation <span style="font-size:0.7rem;background:var(--primary);color:var(--dark);padding:2px 10px;border-radius:20px;vertical-align:middle;margin-left:8px;font-weight:700;">★ Most Requested</span></h3>
+          <p>Our flagship service: end-to-end space transformation from damaged, outdated structure to premium modern space. We handle everything from concept to completion.</p>
+          <ul>
+            <li>Initial consultation &amp; design planning</li>
+            <li>Complete demolition &amp; structural work</li>
+            <li>Full interior fit-out &amp; finishing</li>
+            <li>Furniture, fixtures &amp; styling</li>
+            <li>Turnkey handover ready to move in</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ====== CTA ====== -->
+      <div style="text-align:center;margin-top:60px;padding:50px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
+        <h2 style="font-size:1.8rem;font-weight:800;margin-bottom:12px;">Not Sure Which Service You Need?</h2>
+        <p style="color:var(--text-muted);margin-bottom:24px;max-width:500px;margin-left:auto;margin-right:auto;">
+          Contact us for a free consultation. Our experts will assess your space and recommend the best solution.
+        </p>
+        <a href="/contact" class="btn btn-primary">
+          <i class="fas fa-phone-alt"></i> Get Free Consultation
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-icon"><i class="fas fa-hammer"></i></span>
+            <div class="logo-text">
+              <span class="logo-title">BROKE N BUILT</span>
+              <span class="logo-sub">SERVICES</span>
+            </div>
+          </div>
+          <p>Transforming damaged, outdated, and incomplete spaces into functional, modern, and visually impressive environments.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/services">Services</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Our Services</h4>
+          <ul>
+            <li><a href="/services">Renovation Works</a></li>
+            <li><a href="/services">False Ceiling</a></li>
+            <li><a href="/services">Painting &amp; Finishing</a></li>
+            <li><a href="/services">Flooring Solutions</a></li>
+            <li><a href="/services">Custom Interiors</a></li>
+          </ul>
+        </div>
+        <div class="footer-contact-info">
+          <h4>Contact Us</h4>
+          <p><i class="fas fa-phone-alt"></i> <a href="tel:+917019300855">+91 7019300855</a></p>
+          <p><i class="fas fa-envelope"></i> <a href="mailto:brokenbuiltservices@gmail.com">brokenbuiltservices@gmail.com</a></p>
+          <p><i class="fas fa-map-marker-alt"></i> Bangalore, India</p>
+          <p><i class="fas fa-file-invoice"></i> GST: 29ABFFB0879G1Z9</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 BROKE N BUILT SERVICES. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ====== AI CHATBOT ====== -->
+  <div class="chatbot-widget" id="chatbotWidget">
+    <button class="chatbot-toggle" id="chatbotToggle" aria-label="Open chat">
+      <i class="fas fa-comment-dots" id="chatIcon"></i>
+      <i class="fas fa-times" id="closeIcon" style="display:none;"></i>
+    </button>
+    <div class="chatbot-panel" id="chatbotPanel">
+      <div class="chatbot-header">
+        <div class="chatbot-header-info">
+          <div class="chatbot-avatar"><i class="fas fa-robot"></i></div>
+          <div>
+            <h4>BROKE N BUILT AI</h4>
+            <span class="chatbot-status">Online</span>
+          </div>
+        </div>
+        <button class="chatbot-minimize" id="chatbotMinimize" aria-label="Minimize">
+          <i class="fas fa-minus"></i>
+        </button>
+      </div>
+      <div class="chatbot-messages" id="chatbotMessages">
+        <div class="message message-bot">
+          <div class="message-content">
+            <p>👋 Welcome to BROKE N BUILT SERVICES!</p>
+            <p>I can help you choose the right service for your project. What are you looking for?</p>
+          </div>
+        </div>
+      </div>
+      <div class="chatbot-typing" id="chatbotTyping" style="display:none;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="chatbot-input-area">
+        <div class="chatbot-suggestions" id="chatbotSuggestions">
+          <button class="suggestion-chip" data-text="Tell me about your renovation services">Renovation</button>
+          <button class="suggestion-chip" data-text="How much does false ceiling cost?">False Ceiling Cost</button>
+          <button class="suggestion-chip" data-text="Can you help with office interiors?">Office Interiors</button>
+        </div>
+        <div class="chatbot-input-row">
+          <input type="text" id="chatbotInput" placeholder="Type your message..." autocomplete="off" />
+          <button id="chatbotSend" aria-label="Send"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

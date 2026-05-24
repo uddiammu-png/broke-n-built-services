@@ -4,57 +4,44 @@ const navToggle = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
 const navAnchors = document.querySelectorAll('.nav-links a');
 
+// Set active link based on current page
+const currentPath = window.location.pathname;
+navAnchors.forEach(a => {
+  a.classList.remove('active');
+  const href = a.getAttribute('href');
+  if (href === currentPath || (currentPath === '/' && href === '/')) {
+    a.classList.add('active');
+  } else if (currentPath.startsWith(href) && href !== '/') {
+    a.classList.add('active');
+  }
+});
+
 window.addEventListener('scroll', () => {
   if (window.scrollY > 50) {
     navbar.classList.add('scrolled');
   } else {
     navbar.classList.remove('scrolled');
   }
-
-  // Active link highlighting
-  const sections = document.querySelectorAll('section[id]');
-  let current = '';
-  sections.forEach(section => {
-    const sectionTop = section.offsetTop - 100;
-    if (window.scrollY >= sectionTop) {
-      current = section.getAttribute('id');
-    }
-  });
-  navAnchors.forEach(a => {
-    a.classList.remove('active');
-    if (a.getAttribute('href') === '#' + current) {
-      a.classList.add('active');
-    }
-  });
 });
 
 /* ====== MOBILE NAV TOGGLE ====== */
-navToggle.addEventListener('click', () => {
-  navToggle.classList.toggle('active');
-  navLinks.classList.toggle('open');
-  document.body.style.overflow = navLinks.classList.contains('open') ? 'hidden' : '';
-});
-
-navAnchors.forEach(a => {
-  a.addEventListener('click', () => {
-    navToggle.classList.remove('active');
-    navLinks.classList.remove('open');
-    document.body.style.overflow = '';
+if (navToggle) {
+  navToggle.addEventListener('click', () => {
+    navToggle.classList.toggle('active');
+    navLinks.classList.toggle('open');
+    document.body.style.overflow = navLinks.classList.contains('open') ? 'hidden' : '';
   });
-});
+}
 
-/* ====== SMOOTH SCROLL FOR NAV LINKS ====== */
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    const href = this.getAttribute('href');
-    if (href === '#') return;
-    e.preventDefault();
-    const target = document.querySelector(href);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+if (navAnchors) {
+  navAnchors.forEach(a => {
+    a.addEventListener('click', () => {
+      if (navToggle) navToggle.classList.remove('active');
+      if (navLinks) navLinks.classList.remove('open');
+      document.body.style.overflow = '';
+    });
   });
-});
+}
 
 /* ====== COUNTER ANIMATION ====== */
 function animateCounters() {
@@ -76,12 +63,11 @@ function animateCounters() {
   });
 }
 
-// Trigger counter animation when hero section is in view
 const heroSection = document.getElementById('hero');
 let countersAnimated = false;
 
 const observerOptions = { threshold: 0.3 };
-const observer = new IntersectionObserver((entries) => {
+const counterObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting && !countersAnimated) {
       countersAnimated = true;
@@ -90,21 +76,23 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, observerOptions);
 
-if (heroSection) observer.observe(heroSection);
+if (heroSection) counterObserver.observe(heroSection);
 
 /* ====== INTERSECTION OBSERVER FOR FADE-IN ====== */
 const fadeElements = document.querySelectorAll('.section-header, .about-content, .services-grid, .contact-content');
-fadeElements.forEach(el => el.classList.add('fade-in'));
+if (fadeElements.length > 0) {
+  fadeElements.forEach(el => el.classList.add('fade-in'));
 
-const fadeObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-    }
-  });
-}, { threshold: 0.1 });
+  const fadeObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
 
-fadeElements.forEach(el => fadeObserver.observe(el));
+  fadeElements.forEach(el => fadeObserver.observe(el));
+}
 
 /* ====== CONTACT FORM ====== */
 const contactForm = document.getElementById('contactForm');
@@ -133,11 +121,9 @@ if (contactForm) {
 
       if (response.ok) {
         submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Message Sent!';
-        submitBtn.style.background = 'linear-gradient(135deg, var(--primary), var(--primary-dark))';
         contactForm.reset();
         setTimeout(() => {
           submitBtn.innerHTML = originalText;
-          submitBtn.style.background = '';
           submitBtn.disabled = false;
         }, 3000);
       } else {
@@ -165,64 +151,64 @@ const chatbotSend = document.getElementById('chatbotSend');
 const chatbotTyping = document.getElementById('chatbotTyping');
 const suggestionChips = document.querySelectorAll('.suggestion-chip');
 
-let isChatOpen = false;
+if (chatbotToggle && chatbotPanel) {
+  let isChatOpen = false;
 
-// Toggle chat
-chatbotToggle.addEventListener('click', () => {
-  isChatOpen = !isChatOpen;
-  chatbotPanel.classList.toggle('open', isChatOpen);
-  chatIcon.style.display = isChatOpen ? 'none' : 'block';
-  closeIcon.style.display = isChatOpen ? 'block' : 'none';
-  if (isChatOpen) {
-    scrollToBottom();
-    chatbotInput.focus();
+  chatbotToggle.addEventListener('click', () => {
+    isChatOpen = !isChatOpen;
+    chatbotPanel.classList.toggle('open', isChatOpen);
+    if (chatIcon) chatIcon.style.display = isChatOpen ? 'none' : 'block';
+    if (closeIcon) closeIcon.style.display = isChatOpen ? 'block' : 'none';
+    if (isChatOpen) {
+      scrollToBottom();
+      if (chatbotInput) chatbotInput.focus();
+    }
+  });
+
+  if (chatbotMinimize) {
+    chatbotMinimize.addEventListener('click', () => {
+      isChatOpen = false;
+      chatbotPanel.classList.remove('open');
+      if (chatIcon) chatIcon.style.display = 'block';
+      if (closeIcon) closeIcon.style.display = 'none';
+    });
   }
-});
+}
 
-// Minimize
-chatbotMinimize.addEventListener('click', () => {
-  isChatOpen = false;
-  chatbotPanel.classList.remove('open');
-  chatIcon.style.display = 'block';
-  closeIcon.style.display = 'none';
-});
-
-// Send message
 async function sendMessage() {
+  if (!chatbotInput) return;
   const message = chatbotInput.value.trim();
   if (!message) return;
 
   addMessage(message, 'user');
   chatbotInput.value = '';
-  showTyping();    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
+  showTyping();
+  
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
 
-      hideTyping();
+    hideTyping();
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.reply) {
-          addMessage(data.reply, 'bot');
-        } else {
-          addMessage(getFallbackResponse(message), 'bot');
-        }
-      } else {
-        hideTyping();
-        addMessage(getFallbackResponse(message), 'bot');
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.reply) {
+        addMessage(data.reply, 'bot');
+        return;
       }
-    } catch (err) {
-      hideTyping();
-      const fallback = getFallbackResponse(message);
-      addMessage(fallback, 'bot');
     }
+    addMessage(getFallbackResponse(message), 'bot');
+  } catch (err) {
+    hideTyping();
+    addMessage(getFallbackResponse(message), 'bot');
+  }
 }
 
-// Add message to chat
 function addMessage(text, sender) {
+  if (!chatbotMessages) return;
   const msgDiv = document.createElement('div');
   msgDiv.className = `message message-${sender}`;
   
@@ -235,38 +221,41 @@ function addMessage(text, sender) {
   scrollToBottom();
 }
 
-// Scroll to bottom
 function scrollToBottom() {
-  chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+  if (chatbotMessages) chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
 }
 
-// Typing indicator
 function showTyping() {
-  chatbotTyping.style.display = 'flex';
-  scrollToBottom();
+  if (chatbotTyping) {
+    chatbotTyping.style.display = 'flex';
+    scrollToBottom();
+  }
 }
 
 function hideTyping() {
-  chatbotTyping.style.display = 'none';
+  if (chatbotTyping) chatbotTyping.style.display = 'none';
 }
 
-// Send on button click
-chatbotSend.addEventListener('click', sendMessage);
+if (chatbotSend) chatbotSend.addEventListener('click', sendMessage);
 
-// Send on Enter
-chatbotInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') sendMessage();
-});
-
-// Suggestion chips
-suggestionChips.forEach(chip => {
-  chip.addEventListener('click', () => {
-    chatbotInput.value = chip.dataset.text;
-    sendMessage();
+if (chatbotInput) {
+  chatbotInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
   });
-});
+}
 
-// Fallback responses when server is offline
+if (suggestionChips) {
+  suggestionChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (chatbotInput) {
+        chatbotInput.value = chip.dataset.text;
+        sendMessage();
+      }
+    });
+  });
+}
+
+// Fallback responses
 function getFallbackResponse(message) {
   const msg = message.toLowerCase();
   
@@ -388,7 +377,6 @@ function getFallbackResponse(message) {
     <p>Have a great day! 😊</p>`;
   }
   
-  // Default response
   return `<p>Thank you for reaching out to <strong>BROKE N BUILT SERVICES</strong>! 😊</p>
   <p>Here's how we can help:</p>
   <ul>

@@ -12,6 +12,142 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// ====== EMAIL NOTIFICATION CONFIG ======
+// Set up using environment variables:
+// Option A: Gmail SMTP with App Password
+//   EMAIL_HOST=smtp.gmail.com
+//   EMAIL_PORT=587
+//   EMAIL_USER=your-email@gmail.com
+//   EMAIL_PASS=your-app-password
+//   EMAIL_TO=brokenbuiltservices@gmail.com
+//   EMAIL_FROM=your-email@gmail.com
+//
+// Option B: SendGrid
+//   EMAIL_HOST=smtp.sendgrid.net
+//   EMAIL_PORT=587
+//   EMAIL_USER=apikey
+//   EMAIL_PASS=your-sendgrid-api-key
+//   EMAIL_TO=brokenbuiltservices@gmail.com
+//   EMAIL_FROM=your-verified-sender@example.com
+
+const emailConfig = {
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  user: process.env.EMAIL_USER,
+  pass: process.env.EMAIL_PASS,
+  to: process.env.EMAIL_TO || 'brokenbuiltservices@gmail.com',
+  from: process.env.EMAIL_FROM || 'noreply@broke-n-built-services.com'
+};
+
+const isEmailConfigured = !!(emailConfig.host && emailConfig.user && emailConfig.pass);
+
+// Try to send email notification
+async function sendEmailNotification(inquiry) {
+  if (!isEmailConfigured) {
+    console.log('⚠️  Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env');
+    return false;
+  }
+
+  try {
+    const nodemailer = require('nodemailer');
+
+    const transporter = nodemailer.createTransport({
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.port === 465,
+      auth: {
+        user: emailConfig.user,
+        pass: emailConfig.pass
+      }
+    });
+
+    const mobileDisplay = inquiry.phone && inquiry.phone !== 'Not provided' ? `<a href="tel:${inquiry.phone}">${inquiry.phone}</a>` : 'Not provided';
+    const serviceLabel = inquiry.service && inquiry.service !== 'Not specified'
+      ? inquiry.service.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      : 'Not specified';
+
+    const mailOptions = {
+      from: `"Broke N Built Website" <${emailConfig.from}>`,
+      to: emailConfig.to,
+      subject: `🔨 New Inquiry from ${inquiry.name} - ${serviceLabel}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 32px 24px; text-align: center; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+          .header p { color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 0.9rem; }
+          .body { padding: 28px 24px; }
+          .field { margin-bottom: 20px; display: flex; }
+          .field-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; min-width: 120px; padding-top: 2px; }
+          .field-value { font-size: 1rem; color: #1a1a1a; font-weight: 500; }
+          .field-value a { color: #f97316; text-decoration: none; }
+          .field-value a:hover { text-decoration: underline; }
+          .message-box { background: #f8f9fa; border-left: 4px solid #f97316; padding: 16px 20px; border-radius: 8px; margin-top: 4px; width: 100%; }
+          .message-box p { margin: 0; color: #444; line-height: 1.7; font-size: 0.95rem; }
+          .divider { height: 1px; background: linear-gradient(90deg, transparent, #e0e0e0, transparent); margin: 24px 0; }
+          .footer { padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 0.75rem; color: #999; text-align: center; line-height: 1.6; }
+          .badge { display: inline-block; background: rgba(249,115,22,0.1); color: #ea580c; padding: 2px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+          @media (max-width: 480px) {
+            .field { flex-direction: column; }
+            .field-label { margin-bottom: 4px; }
+          }
+        </style></head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔨 New Client Inquiry</h1>
+              <p>BROKE N BUILT SERVICES - Website Contact Form</p>
+            </div>
+            <div class="body">
+              <div class="field">
+                <div class="field-label">Name</div>
+                <div class="field-value">${inquiry.name}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Email</div>
+                <div class="field-value"><a href="mailto:${inquiry.email}">${inquiry.email}</a></div>
+              </div>
+              <div class="field">
+                <div class="field-label">Mobile</div>
+                <div class="field-value">${mobileDisplay}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Service</div>
+                <div class="field-value"><span class="badge">${serviceLabel}</span></div>
+              </div>
+              <div class="divider"></div>
+              <div class="field">
+                <div class="field-label">Message</div>
+                <div class="message-box"><p>${inquiry.message.replace(/\n/g, '<br>')}</p></div>
+              </div>
+              <div class="divider"></div>
+              <div class="field">
+                <div class="field-label">Received</div>
+                <div class="field-value">${new Date(inquiry.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} IST</div>
+              </div>
+            </div>
+            <div class="footer">
+              BROKE N BUILT SERVICES &bull; #8, Adibyraveshwara Nilaya, 3rd Floor, Green Wood Street, Cheemasandra, Bangalore-560049<br>
+              📞 +91 7019300855 &bull; 📧 brokenbuiltservices@gmail.com
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email notification sent to', emailConfig.to);
+    return true;
+  } catch (err) {
+    console.error('❌ Failed to send email:', err.message);
+    return false;
+  }
+}
+
 // ====== AI CHATBOT ENDPOINT ======
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
@@ -30,7 +166,6 @@ app.post('/api/chat', async (req, res) => {
       
       const clientConfig = { apiKey };
       
-      // If using OpenRouter, set the base URL and headers
       if (isOpenRouter) {
         clientConfig.baseURL = 'https://openrouter.ai/api/v1';
       }
@@ -78,11 +213,10 @@ TONE: Friendly, professional, enthusiastic about helping customers transform the
       return res.json({ reply });
     } catch (err) {
       console.error('AI API error:', err.message);
-      // Fall through to smart fallback
     }
   }
 
-  // Smart fallback response (works even without API key)
+  // Smart fallback response
   const reply = generateSmartResponse(message);
   res.json({ reply });
 });
@@ -209,7 +343,6 @@ function generateSmartResponse(message) {
     <p>Have a great day! 😊</p>`;
   }
   
-  // Default response
   return `<p>Thank you for reaching out to <strong>BROKE N BUILT SERVICES</strong>! 😊</p>
   <p>Here's how we can help:</p>
   <ul>
@@ -229,7 +362,6 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Name, email, and message are required' });
   }
 
-  // Log the inquiry (in production, send an email or save to DB)
   const inquiry = {
     name,
     email,
@@ -256,15 +388,33 @@ app.post('/api/contact', async (req, res) => {
     console.error('Failed to save inquiry:', err.message);
   }
 
+  // Try to send email notification
+  await sendEmailNotification(inquiry);
+
   res.json({
     success: true,
     message: 'Thank you! We have received your inquiry and will contact you shortly.'
   });
 });
 
-// ====== SERVE FRONTEND ======
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// ====== SERVE PAGES ======
+const pages = {
+  '/': 'index.html',
+  '/about': 'about.html',
+  '/services': 'services.html',
+  '/contact': 'contact.html'
+};
+
+app.get(Object.keys(pages), (req, res) => {
+  const page = pages[req.path];
+  if (page) {
+    res.sendFile(path.join(__dirname, page));
+  }
+});
+
+// 404 fallback
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ====== START SERVER ======
@@ -278,9 +428,23 @@ app.listen(PORT, () => {
 ║   📧  brokenbuiltservices@gmail.com                  ║
 ║   📞  +91 7019300855                                 ║
 ║                                                      ║
+║   📄  Pages: Home | About | Services | Contact       ║
+║                                                      ║
+║   💡  Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env ║
+║        to send inquiry notifications via email       ║
+║                                                      ║
 ║   💡  Set OPENAI_API_KEY or OPENROUTER_API_KEY      ║
 ║        for AI chatbot (OpenRouter has free models)  ║
 ║                                                      ║
 ╚══════════════════════════════════════════════════════╝
   `);
+
+  if (!isEmailConfigured) {
+    console.log('⚠️  Email notifications not configured.');
+    console.log('   Create a .env file with:');
+    console.log('   EMAIL_HOST=smtp.gmail.com');
+    console.log('   EMAIL_USER=your-email@gmail.com');
+    console.log('   EMAIL_PASS=your-app-password');
+    console.log('   EMAIL_TO=brokenbuiltservices@gmail.com\n');
+  }
 });
