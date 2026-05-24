@@ -15,7 +15,7 @@ services:
         sync: false
       - key: SESSION_SECRET
         sync: false
-      - key: SYNC_SECRET
+      - key: ADMIN_SYNC_SECRET
         sync: false
       - key: EMAIL_HOST
         value: smtp.gmail.com

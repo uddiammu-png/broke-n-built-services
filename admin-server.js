@@ -248,7 +248,7 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // ====== SYNC INQUIRIES FROM MAIN SERVER ======
-const SYNC_SECRET = process.env.SYNC_SECRET || '';
+const SYNC_SECRET = process.env.ADMIN_SYNC_SECRET || '';
 
 app.post('/api/sync/inquiry', async (req, res) => {
   const token = req.headers['x-sync-token'] || req.query.token;
