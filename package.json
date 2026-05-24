@@ -7,12 +7,18 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["renovation", "interior-design", "bangalore", "construction"],
+  "keywords": [
+    "renovation",
+    "interior-design",
+    "bangalore",
+    "construction"
+  ],
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.18.2",
+    "nodemailer": "^8.0.7",
     "openai": "^4.0.0"
   }
 }
