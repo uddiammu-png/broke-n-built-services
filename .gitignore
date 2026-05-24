@@ -1,6 +1,9 @@
 node_modules/
 inquiries/
+admin-inquiries/
 .env
 .DS_Store
 *.log
 nul
+cookies.txt
+*.txt

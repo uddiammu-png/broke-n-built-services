@@ -3,14 +3,204 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const session = require('express-session');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_ROUTE = (process.env.ADMIN_ROUTE || 'admin').replace(/^\/+|\/+$/g, '');
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
+const ADMIN_SYNC_URL = process.env.ADMIN_SYNC_URL || ''; // URL of standalone admin server to sync inquiries to
+const SYNC_SECRET = process.env.SYNC_SECRET || ''; // Shared secret for authenticating sync with admin server
+const INQUIRIES_FILE = path.join(__dirname, 'inquiries', 'inquiries.json');
 
-// Middleware
+// ====== INQUIRIES STORAGE HELPERS ======
+function loadInquiries() {
+  try {
+    if (fs.existsSync(INQUIRIES_FILE)) {
+      const data = fs.readFileSync(INQUIRIES_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Failed to load inquiries:', err.message);
+  }
+  return [];
+}
+
+function saveInquiries(inquiries) {
+  try {
+    const dir = path.dirname(INQUIRIES_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(INQUIRIES_FILE, JSON.stringify(inquiries, null, 2));
+  } catch (err) {
+    console.error('Failed to save inquiries:', err.message);
+  }
+}
+
+function addInquiry(inquiry) {
+  const inquiries = loadInquiries();
+  inquiries.push({
+    ...inquiry,
+    id: Date.now().toString(),
+    timestamp: new Date().toISOString(),
+    read: false
+  });
+  saveInquiries(inquiries);
+  return inquiry;
+}
+
+function getInquiryById(id) {
+  const inquiries = loadInquiries();
+  return inquiries.find(i => i.id === id);
+}
+
+function updateInquiry(id, updates) {
+  const inquiries = loadInquiries();
+  const idx = inquiries.findIndex(i => i.id === id);
+  if (idx === -1) return null;
+  inquiries[idx] = { ...inquiries[idx], ...updates };
+  saveInquiries(inquiries);
+  return inquiries[idx];
+}
+
+function deleteInquiry(id) {
+  const inquiries = loadInquiries();
+  const filtered = inquiries.filter(i => i.id !== id);
+  if (filtered.length === inquiries.length) return false;
+  saveInquiries(filtered);
+  return true;
+}
+
+function getInquiryStats() {
+  const inquiries = loadInquiries();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  return {
+    total: inquiries.length,
+    unread: inquiries.filter(i => !i.read).length,
+    thisMonth: inquiries.filter(i => new Date(i.timestamp) >= monthStart).length,
+    today: inquiries.filter(i => new Date(i.timestamp) >= todayStart).length
+  };
+}
+
+// ====== MIGRATE OLD INDIVIDUAL FILES ======
+(function migrateOldInquiries() {
+  const inquiriesDir = path.join(__dirname, 'inquiries');
+  if (!fs.existsSync(inquiriesDir)) return;
+
+  // If combined file already exists, skip migration
+  if (fs.existsSync(INQUIRIES_FILE)) return;
+
+  const files = fs.readdirSync(inquiriesDir).filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
+  if (files.length === 0) return;
+
+  const inquiries = files.map(f => {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(inquiriesDir, f), 'utf-8'));
+      return {
+        ...data,
+        id: f.replace('inquiry-', '').replace('.json', ''),
+        read: false
+      };
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+
+  if (inquiries.length > 0) {
+    saveInquiries(inquiries);
+    console.log(`📦 Migrated ${inquiries.length} existing inquiries to combined storage`);
+  }
+})();
+
+// ====== SESSION SETUP ======
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'broke-n-built-admin-secret-2025',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: false, // Set to true if using HTTPS
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  }
+}));
+
+// ====== MIDDLEWARE ======
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
+
+// ====== ADMIN AUTH MIDDLEWARE ======
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized. Please log in.' });
+}
+
+// ====== ADMIN AUTH ENDPOINTS ======
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  if (password === ADMIN_PASSWORD) {
+    req.session.isAdmin = true;
+    return res.json({ success: true });
+  }
+  res.status(401).json({ error: 'Invalid password' });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+app.get('/api/admin/check', (req, res) => {
+  res.json({
+    authenticated: !!(req.session && req.session.isAdmin),
+    emailConfigured: isEmailConfigured,
+    adminName: ADMIN_NAME
+  });
+});
+
+// ====== ADMIN API ENDPOINTS (Protected) ======
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+  res.json(getInquiryStats());
+});
+
+app.get('/api/admin/inquiries', requireAdmin, (req, res) => {
+  const inquiries = loadInquiries();
+  // Sort by newest first
+  inquiries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  res.json(inquiries);
+});
+
+app.put('/api/admin/inquiries/:id/read', requireAdmin, (req, res) => {
+  const inquiry = updateInquiry(req.params.id, { read: true });
+  if (!inquiry) {
+    return res.status(404).json({ error: 'Inquiry not found' });
+  }
+  res.json({ success: true, inquiry });
+});
+
+app.put('/api/admin/inquiries/:id/unread', requireAdmin, (req, res) => {
+  const inquiry = updateInquiry(req.params.id, { read: false });
+  if (!inquiry) {
+    return res.status(404).json({ error: 'Inquiry not found' });
+  }
+  res.json({ success: true, inquiry });
+});
+
+app.delete('/api/admin/inquiries/:id', requireAdmin, (req, res) => {
+  const deleted = deleteInquiry(req.params.id);
+  if (!deleted) {
+    return res.status(404).json({ error: 'Inquiry not found' });
+  }
+  res.json({ success: true });
+});
 
 // ====== EMAIL NOTIFICATION CONFIG ======
 // Set up using environment variables:
@@ -396,6 +586,15 @@ function generateSmartResponse(message) {
   <p>Could you tell me more about your project? I'd be happy to provide specific information! 🛠️</p>`;
 }
 
+// ====== EMAIL CONFIG ENDPOINT ======
+app.get('/api/admin/email-status', requireAdmin, (req, res) => {
+  res.json({
+    configured: isEmailConfigured,
+    host: emailConfig.host,
+    to: emailConfig.to
+  });
+});
+
 // ====== CONTACT FORM ENDPOINT ======
 app.post('/api/contact', async (req, res) => {
   const { name, email, phone, service, message } = req.body;
@@ -415,7 +614,10 @@ app.post('/api/contact', async (req, res) => {
 
   console.log('📋 New Contact Inquiry:', inquiry);
 
-  // Save to local file for record
+  // Save to combined storage
+  addInquiry(inquiry);
+
+  // Also save as individual file for backup
   try {
     const inquiriesDir = path.join(__dirname, 'inquiries');
     if (!fs.existsSync(inquiriesDir)) {
@@ -427,11 +629,40 @@ app.post('/api/contact', async (req, res) => {
       JSON.stringify(inquiry, null, 2)
     );
   } catch (err) {
-    console.error('Failed to save inquiry:', err.message);
+    console.error('Failed to save backup inquiry file:', err.message);
   }
 
   // Try to send email notification
   await sendEmailNotification(inquiry);
+
+  // Sync inquiry to standalone admin server (if configured)
+  if (ADMIN_SYNC_URL) {
+    try {
+      const https = require('https');
+      const http = require('http');
+      const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
+      const body = JSON.stringify(inquiry);
+      const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
+      const req = transport.request(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
+        },
+        timeout: 5000
+      }, (syncRes) => {
+        console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
+      });
+      req.on('error', (err) => {
+        console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
+      });
+      req.write(body);
+      req.end();
+    } catch (err) {
+      console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
+    }
+  }
 
   res.json({
     success: true,
@@ -455,6 +686,11 @@ app.get(Object.keys(pages), (req, res) => {
   }
 });
 
+// Serve admin page at secret route (no auth required to load the page — the JS handles auth)
+app.get(`/${ADMIN_ROUTE}`, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // 404 fallback
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'index.html'));
@@ -468,26 +704,25 @@ app.listen(PORT, () => {
 ║   🏗️  BROKE N BUILT SERVICES - Website Server        ║
 ║                                                      ║
 ║   🌐  http://localhost:${PORT}                         ║
+║   🔐  Admin: http://localhost:${PORT}/${ADMIN_ROUTE}      ║
 ║   📧  brokenbuiltservices@gmail.com                  ║
 ║   📞  +91 7019300855                                 ║
 ║                                                      ║
 ║   📄  Pages: Home | About | Services | Projects | Contact  ║
-║                                                      ║
-║   💡  Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env ║
-║        to send inquiry notifications via email       ║
-║                                                      ║
-║   💡  Set OPENAI_API_KEY or OPENROUTER_API_KEY      ║
-║        for AI chatbot (OpenRouter has free models)  ║
+║   🔑  Admin Password set in .env file                ║
 ║                                                      ║
 ╚══════════════════════════════════════════════════════╝
   `);
 
-  if (!isEmailConfigured) {
-    console.log('⚠️  Email notifications not configured.');
-    console.log('   Create a .env file with:');
-    console.log('   EMAIL_HOST=smtp.gmail.com');
-    console.log('   EMAIL_USER=your-email@gmail.com');
-    console.log('   EMAIL_PASS=your-app-password');
-    console.log('   EMAIL_TO=brokenbuiltservices@gmail.com\n');
+  // Migrated inquiry count
+  const existingCount = loadInquiries().length;
+  if (existingCount > 0) {
+    console.log(`📊  ${existingCount} inquiries stored in database`);
+  }
+
+  // Warn if ADMIN_SYNC_URL is not configured
+  if (!ADMIN_SYNC_URL && process.env.NODE_ENV === 'production') {
+    console.log('⚠️  ADMIN_SYNC_URL not set — inquiries will NOT be synced to admin server');
+    console.log('   Set ADMIN_SYNC_URL in your .env or Render environment variables');
   }
 });
