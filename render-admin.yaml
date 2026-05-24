@@ -31,3 +31,6 @@ services:
         value: brokenbuiltservices@gmail.com
       - key: MAIN_SITE_URL
         value: https://broke-n-built-services.onrender.com
+      # PostgreSQL — created on Render and auto-injected into connected services
+      - key: DATABASE_URL
+        sync: false

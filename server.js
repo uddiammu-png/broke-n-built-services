@@ -4,95 +4,21 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const ADMIN_ROUTE = (process.env.ADMIN_ROUTE || 'admin').replace(/^\/+|\/+$/g, '');
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
-const ADMIN_SYNC_URL = process.env.ADMIN_SYNC_URL || ''; // URL of standalone admin server to sync inquiries to
-const SYNC_SECRET = process.env.SYNC_SECRET || ''; // Shared secret for authenticating sync with admin server
+const ADMIN_SYNC_URL = process.env.ADMIN_SYNC_URL || '';
+const SYNC_SECRET = process.env.SYNC_SECRET || '';
 const INQUIRIES_FILE = path.join(__dirname, 'inquiries', 'inquiries.json');
 
-// ====== INQUIRIES STORAGE HELPERS ======
-function loadInquiries() {
-  try {
-    if (fs.existsSync(INQUIRIES_FILE)) {
-      const data = fs.readFileSync(INQUIRIES_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error('Failed to load inquiries:', err.message);
-  }
-  return [];
-}
-
-function saveInquiries(inquiries) {
-  try {
-    const dir = path.dirname(INQUIRIES_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(INQUIRIES_FILE, JSON.stringify(inquiries, null, 2));
-  } catch (err) {
-    console.error('Failed to save inquiries:', err.message);
-  }
-}
-
-function addInquiry(inquiry) {
-  const inquiries = loadInquiries();
-  inquiries.push({
-    ...inquiry,
-    id: Date.now().toString(),
-    timestamp: new Date().toISOString(),
-    read: false
-  });
-  saveInquiries(inquiries);
-  return inquiry;
-}
-
-function getInquiryById(id) {
-  const inquiries = loadInquiries();
-  return inquiries.find(i => i.id === id);
-}
-
-function updateInquiry(id, updates) {
-  const inquiries = loadInquiries();
-  const idx = inquiries.findIndex(i => i.id === id);
-  if (idx === -1) return null;
-  inquiries[idx] = { ...inquiries[idx], ...updates };
-  saveInquiries(inquiries);
-  return inquiries[idx];
-}
-
-function deleteInquiry(id) {
-  const inquiries = loadInquiries();
-  const filtered = inquiries.filter(i => i.id !== id);
-  if (filtered.length === inquiries.length) return false;
-  saveInquiries(filtered);
-  return true;
-}
-
-function getInquiryStats() {
-  const inquiries = loadInquiries();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  return {
-    total: inquiries.length,
-    unread: inquiries.filter(i => !i.read).length,
-    thisMonth: inquiries.filter(i => new Date(i.timestamp) >= monthStart).length,
-    today: inquiries.filter(i => new Date(i.timestamp) >= todayStart).length
-  };
-}
-
-// ====== MIGRATE OLD INDIVIDUAL FILES ======
+// ====== MIGRATE OLD INDIVIDUAL FILES (runs once at startup) ======
 (function migrateOldInquiries() {
   const inquiriesDir = path.join(__dirname, 'inquiries');
   if (!fs.existsSync(inquiriesDir)) return;
-
-  // If combined file already exists, skip migration
   if (fs.existsSync(INQUIRIES_FILE)) return;
 
   const files = fs.readdirSync(inquiriesDir).filter(f => f.startsWith('inquiry-') && f.endsWith('.json'));
@@ -101,19 +27,20 @@ function getInquiryStats() {
   const inquiries = files.map(f => {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(inquiriesDir, f), 'utf-8'));
-      return {
-        ...data,
-        id: f.replace('inquiry-', '').replace('.json', ''),
-        read: false
-      };
-    } catch {
-      return null;
-    }
+      return { ...data, id: f.replace('inquiry-', '').replace('.json', ''), read: false };
+    } catch { return null; }
   }).filter(Boolean);
 
   if (inquiries.length > 0) {
-    saveInquiries(inquiries);
-    console.log(`📦 Migrated ${inquiries.length} existing inquiries to combined storage`);
+    // Write combined file — db.migrateFileInquiries will pick it up
+    try {
+      const dir = path.dirname(INQUIRIES_FILE);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(INQUIRIES_FILE, JSON.stringify(inquiries, null, 2));
+      console.log(`📦 Migrated ${inquiries.length} existing inquiries to combined storage`);
+    } catch (err) {
+      console.error('Failed to write combined inquiries file:', err.message);
+    }
   }
 })();
 
@@ -124,8 +51,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: false, // Set to true if using HTTPS
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    secure: false,
+    maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax'
   }
 }));
@@ -137,9 +64,7 @@ app.use(express.static(path.join(__dirname)));
 
 // ====== ADMIN AUTH MIDDLEWARE ======
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.isAdmin) {
-    return next();
-  }
+  if (req.session && req.session.isAdmin) return next();
   res.status(401).json({ error: 'Unauthorized. Please log in.' });
 }
 
@@ -167,59 +92,60 @@ app.get('/api/admin/check', (req, res) => {
 });
 
 // ====== ADMIN API ENDPOINTS (Protected) ======
-app.get('/api/admin/stats', requireAdmin, (req, res) => {
-  res.json(getInquiryStats());
-});
-
-app.get('/api/admin/inquiries', requireAdmin, (req, res) => {
-  const inquiries = loadInquiries();
-  // Sort by newest first
-  inquiries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  res.json(inquiries);
-});
-
-app.put('/api/admin/inquiries/:id/read', requireAdmin, (req, res) => {
-  const inquiry = updateInquiry(req.params.id, { read: true });
-  if (!inquiry) {
-    return res.status(404).json({ error: 'Inquiry not found' });
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    const stats = await db.getInquiryStats();
+    res.json(stats);
+  } catch (err) {
+    console.error('Error fetching stats:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
-  res.json({ success: true, inquiry });
 });
 
-app.put('/api/admin/inquiries/:id/unread', requireAdmin, (req, res) => {
-  const inquiry = updateInquiry(req.params.id, { read: false });
-  if (!inquiry) {
-    return res.status(404).json({ error: 'Inquiry not found' });
+app.get('/api/admin/inquiries', requireAdmin, async (req, res) => {
+  try {
+    const inquiries = await db.loadInquiries();
+    res.json(inquiries);
+  } catch (err) {
+    console.error('Error fetching inquiries:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
   }
-  res.json({ success: true, inquiry });
 });
 
-app.delete('/api/admin/inquiries/:id', requireAdmin, (req, res) => {
-  const deleted = deleteInquiry(req.params.id);
-  if (!deleted) {
-    return res.status(404).json({ error: 'Inquiry not found' });
+app.put('/api/admin/inquiries/:id/read', requireAdmin, async (req, res) => {
+  try {
+    const inquiry = await db.updateInquiry(req.params.id, { read: true });
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true, inquiry });
+  } catch (err) {
+    console.error('Error marking inquiry as read:', err);
+    res.status(500).json({ error: 'Failed to update inquiry' });
   }
-  res.json({ success: true });
+});
+
+app.put('/api/admin/inquiries/:id/unread', requireAdmin, async (req, res) => {
+  try {
+    const inquiry = await db.updateInquiry(req.params.id, { read: false });
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true, inquiry });
+  } catch (err) {
+    console.error('Error marking inquiry as unread:', err);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+});
+
+app.delete('/api/admin/inquiries/:id', requireAdmin, async (req, res) => {
+  try {
+    const deleted = await db.deleteInquiry(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting inquiry:', err);
+    res.status(500).json({ error: 'Failed to delete inquiry' });
+  }
 });
 
 // ====== EMAIL NOTIFICATION CONFIG ======
-// Set up using environment variables:
-// Option A: Gmail SMTP with App Password
-//   EMAIL_HOST=smtp.gmail.com
-//   EMAIL_PORT=587
-//   EMAIL_USER=your-email@gmail.com
-//   EMAIL_PASS=your-app-password
-//   EMAIL_TO=brokenbuiltservices@gmail.com
-//   EMAIL_FROM=your-email@gmail.com
-//
-// Option B: SendGrid
-//   EMAIL_HOST=smtp.sendgrid.net
-//   EMAIL_PORT=587
-//   EMAIL_USER=apikey
-//   EMAIL_PASS=your-sendgrid-api-key
-//   EMAIL_TO=brokenbuiltservices@gmail.com
-//   EMAIL_FROM=your-verified-sender@example.com
-
 const emailConfig = {
   host: process.env.EMAIL_HOST,
   port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -231,7 +157,6 @@ const emailConfig = {
 
 const isEmailConfigured = !!(emailConfig.host && emailConfig.user && emailConfig.pass);
 
-// Try to send email notification
 async function sendEmailNotification(inquiry) {
   if (!isEmailConfigured) {
     console.log('⚠️  Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env');
@@ -245,10 +170,7 @@ async function sendEmailNotification(inquiry) {
       host: emailConfig.host,
       port: emailConfig.port,
       secure: emailConfig.port === 465,
-      auth: {
-        user: emailConfig.user,
-        pass: emailConfig.pass
-      }
+      auth: { user: emailConfig.user, pass: emailConfig.pass }
     });
 
     const mobileDisplay = inquiry.phone && inquiry.phone !== 'Not provided' ? `<a href="tel:${inquiry.phone}">${inquiry.phone}</a>` : 'Not provided';
@@ -280,10 +202,7 @@ async function sendEmailNotification(inquiry) {
           .divider { height: 1px; background: linear-gradient(90deg, transparent, #e0e0e0, transparent); margin: 24px 0; }
           .footer { padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 0.75rem; color: #999; text-align: center; line-height: 1.6; }
           .badge { display: inline-block; background: rgba(249,115,22,0.1); color: #ea580c; padding: 2px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-          @media (max-width: 480px) {
-            .field { flex-direction: column; }
-            .field-label { margin-bottom: 4px; }
-          }
+          @media (max-width: 480px) { .field { flex-direction: column; } .field-label { margin-bottom: 4px; } }
         </style></head>
         <body>
           <div class="container">
@@ -341,11 +260,8 @@ async function sendEmailNotification(inquiry) {
 // ====== AI CHATBOT ENDPOINT ======
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
-  if (!message) {
-    return res.status(400).json({ error: 'Message is required' });
-  }
+  if (!message) return res.status(400).json({ error: 'Message is required' });
 
-  // Try AI provider if API key is configured (OpenAI or OpenRouter)
   const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
   const isOpenRouter = !!process.env.OPENROUTER_API_KEY;
   const defaultKey = 'your-openai-api-key-here';
@@ -353,15 +269,10 @@ app.post('/api/chat', async (req, res) => {
   if (apiKey && apiKey !== defaultKey) {
     try {
       const OpenAI = require('openai');
-      
       const clientConfig = { apiKey };
-      
-      if (isOpenRouter) {
-        clientConfig.baseURL = 'https://openrouter.ai/api/v1';
-      }
-      
+      if (isOpenRouter) clientConfig.baseURL = 'https://openrouter.ai/api/v1';
       const openai = new OpenAI(clientConfig);
-      
+
       const systemPrompt = `You are a helpful AI assistant for "BROKE N BUILT SERVICES", a renovation and space transformation company based in Bangalore, India.
 
 COMPANY INFO:
@@ -406,7 +317,6 @@ When asked about projects or portfolio, enthusiastically share details about rel
 TONE: Friendly, professional, enthusiastic about helping customers transform their spaces. Keep responses concise but helpful. Use emojis sparingly.`;
 
       const model = isOpenRouter ? 'openrouter/free' : 'gpt-4o-mini';
-      
       const completion = await openai.chat.completions.create({
         model,
         messages: [
@@ -424,15 +334,13 @@ TONE: Friendly, professional, enthusiastic about helping customers transform the
     }
   }
 
-  // Smart fallback response
   const reply = generateSmartResponse(message);
   res.json({ reply });
 });
 
-// Smart fallback response generator
 function generateSmartResponse(message) {
   const msg = message.toLowerCase();
-  
+
   if (msg.includes('kitchen') || msg.includes('renovation') || msg.includes('remodel')) {
     return `<p>🏠 <strong>Kitchen Renovation</strong></p>
     <p>Great choice! Our kitchen renovation service includes:</p>
@@ -444,14 +352,14 @@ function generateSmartResponse(message) {
     </ul>
     <p>📞 Call us at <strong>+91 7019300855</strong> for a free quote or email <strong>brokenbuiltservices@gmail.com</strong></p>`;
   }
-  
+
   if (msg.includes('price') || msg.includes('cost') || msg.includes('charge') || msg.includes('rate') || msg.includes('pricing') || msg.includes('budget')) {
     return `<p>💰 <strong>Pricing Information</strong></p>
     <p>Our pricing depends on the scope of work, materials, and space size. We offer <strong>free on-site consultations and quotes</strong>!</p>
     <p>📞 Call <strong>+91 7019300855</strong> or email <strong>brokenbuiltservices@gmail.com</strong> to schedule a visit.</p>
     <p>We provide transparent pricing with no hidden costs. ✅</p>`;
   }
-  
+
   if (msg.includes('visit') || msg.includes('site') || msg.includes('appointment') || msg.includes('schedule') || msg.includes('book') || msg.includes('inspection')) {
     return `<p>📅 <strong>Schedule a Site Visit</strong></p>
     <p>We'd love to visit your space! Here's how to book:</p>
@@ -460,7 +368,7 @@ function generateSmartResponse(message) {
     <p>📍 Location: Bangalore (and surrounding areas)</p>
     <p>Our team will visit, assess your needs, and provide a detailed quote — free of charge! 🎉</p>`;
   }
-  
+
   if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey') || msg.includes('good morning') || msg.includes('good evening')) {
     return `<p>👋 Hello! Welcome to <strong>BROKE N BUILT SERVICES</strong>!</p>
     <p>I'm your AI assistant. Here's how I can help:</p>
@@ -472,7 +380,7 @@ function generateSmartResponse(message) {
     </ul>
     <p>What would you like to know? 😊</p>`;
   }
-  
+
   if (msg.includes('false ceiling') || msg.includes('ceiling')) {
     return `<p>🔨 <strong>False Ceiling Installation</strong></p>
     <p>We install modern false ceilings for aesthetic appeal and improved acoustics. Options include:</p>
@@ -484,7 +392,7 @@ function generateSmartResponse(message) {
     </ul>
     <p>📞 Call us at <strong>+91 7019300855</strong> for a quote!</p>`;
   }
-  
+
   if (msg.includes('paint') || msg.includes('painting')) {
     return `<p>🎨 <strong>Painting & Finishing</strong></p>
     <p>We offer premium painting services including:</p>
@@ -496,7 +404,7 @@ function generateSmartResponse(message) {
     </ul>
     <p>Transform your walls with our expert team!</p>`;
   }
-  
+
   if (msg.includes('floor') || msg.includes('flooring') || msg.includes('tile')) {
     return `<p>🏗️ <strong>Flooring Solutions</strong></p>
     <p>Expert flooring installation services:</p>
@@ -507,12 +415,12 @@ function generateSmartResponse(message) {
       <li>Vinyl flooring</li>
     </ul>`;
   }
-  
+
   if (msg.includes('electrical') || msg.includes('plumbing') || msg.includes('pipe') || msg.includes('wire')) {
     return `<p>⚡ <strong>Electrical & Plumbing Solutions</strong></p>
     <p>Complete electrical and plumbing services for renovation and new builds. Our certified team handles everything from wiring to pipe fittings with safety and quality.</p>`;
   }
-  
+
   if (msg.includes('interior') || msg.includes('furniture') || msg.includes('cabinet') || msg.includes('wardrobe')) {
     return `<p>🛋️ <strong>Custom Interiors</strong></p>
     <p>Bespoke interior solutions including:</p>
@@ -523,7 +431,7 @@ function generateSmartResponse(message) {
       <li>Office workstations</li>
     </ul>`;
   }
-  
+
   if (msg.includes('commercial') || msg.includes('office') || msg.includes('workspace')) {
     return `<p>🏢 <strong>Commercial & Workspace Solutions</strong></p>
     <p>We specialize in transforming commercial spaces with:</p>
@@ -535,7 +443,7 @@ function generateSmartResponse(message) {
       <li>Reception area design</li>
     </ul>`;
   }
-  
+
   if (msg.includes('location') || msg.includes('address') || msg.includes('where') || msg.includes('bangalore') || msg.includes('find')) {
     return `<p>📍 <strong>Our Location</strong></p>
     <p>#8, Adibyraveshwara Nilaya, 3rd Floor,<br>
@@ -544,13 +452,13 @@ function generateSmartResponse(message) {
     <p>📞 Phone: <strong>+91 7019300855</strong></p>
     <p>📧 Email: <strong>brokenbuiltservices@gmail.com</strong></p>`;
   }
-  
+
   if (msg.includes('thank') || msg.includes('thanks')) {
     return `<p>🙏 You're welcome! We're glad to help.</p>
     <p>If you have any more questions, feel free to ask. Or if you're ready to get started, give us a call at <strong>+91 7019300855</strong>!</p>
     <p>Have a great day! 😊</p>`;
   }
-  
+
   if (msg.includes('project') || msg.includes('portfolio') || msg.includes('work done') || msg.includes('completed') || msg.includes('past work') || msg.includes('experience') || msg.includes('cordilia') || msg.includes('sharadha') || msg.includes('allseasons') || msg.includes('zanith') || msg.includes('vario') || msg.includes('karle') || msg.includes('soliza') || msg.includes('levelle') || msg.includes('northstar')) {
     return `<p>🏗️ <strong>Our Project Portfolio</strong></p>
     <p>We've completed <strong>150+ projects</strong> across Bangalore! Here's a selection:</p>
@@ -573,7 +481,7 @@ function generateSmartResponse(message) {
     <p>📸 View full details at <strong>broke-n-built-services.onrender.com/projects</strong></p>
     <p>📞 Call <strong>+91 7019300855</strong> to discuss your project!</p>`;
   }
-  
+
   return `<p>Thank you for reaching out to <strong>BROKE N BUILT SERVICES</strong>! 😊</p>
   <p>Here's how we can help:</p>
   <ul>
@@ -588,11 +496,7 @@ function generateSmartResponse(message) {
 
 // ====== EMAIL CONFIG ENDPOINT ======
 app.get('/api/admin/email-status', requireAdmin, (req, res) => {
-  res.json({
-    configured: isEmailConfigured,
-    host: emailConfig.host,
-    to: emailConfig.to
-  });
+  res.json({ configured: isEmailConfigured, host: emailConfig.host, to: emailConfig.to });
 });
 
 // ====== CONTACT FORM ENDPOINT ======
@@ -603,31 +507,19 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Name, email, mobile number, and message are required' });
   }
 
-  const inquiry = {
-    name,
-    email,
-    phone: phone || 'Not provided',
-    service: service || 'Not specified',
-    message,
-    timestamp: new Date().toISOString()
-  };
+  const inquiry = { name, email, phone: phone || 'Not provided', service: service || 'Not specified', message };
 
   console.log('📋 New Contact Inquiry:', inquiry);
 
-  // Save to combined storage
-  addInquiry(inquiry);
+  // Save via db module (PostgreSQL or file-based)
+  const saved = await db.addInquiry(inquiry);
+  inquiry.timestamp = saved.timestamp;
 
   // Also save as individual file for backup
   try {
     const inquiriesDir = path.join(__dirname, 'inquiries');
-    if (!fs.existsSync(inquiriesDir)) {
-      fs.mkdirSync(inquiriesDir, { recursive: true });
-    }
-    const filename = `inquiry-${Date.now()}.json`;
-    fs.writeFileSync(
-      path.join(inquiriesDir, filename),
-      JSON.stringify(inquiry, null, 2)
-    );
+    if (!fs.existsSync(inquiriesDir)) fs.mkdirSync(inquiriesDir, { recursive: true });
+    fs.writeFileSync(path.join(inquiriesDir, `inquiry-${Date.now()}.json`), JSON.stringify(inquiry, null, 2));
   } catch (err) {
     console.error('Failed to save backup inquiry file:', err.message);
   }
@@ -643,7 +535,7 @@ app.post('/api/contact', async (req, res) => {
       const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
       const body = JSON.stringify(inquiry);
       const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
-      const req = transport.request(url.toString(), {
+      const syncReq = transport.request(url.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -654,11 +546,11 @@ app.post('/api/contact', async (req, res) => {
       }, (syncRes) => {
         console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
       });
-      req.on('error', (err) => {
+      syncReq.on('error', (err) => {
         console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
       });
-      req.write(body);
-      req.end();
+      syncReq.write(body);
+      syncReq.end();
     } catch (err) {
       console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
     }
@@ -681,23 +573,19 @@ const pages = {
 
 app.get(Object.keys(pages), (req, res) => {
   const page = pages[req.path];
-  if (page) {
-    res.sendFile(path.join(__dirname, page));
-  }
+  if (page) res.sendFile(path.join(__dirname, page));
 });
 
-// Serve admin page at secret route (no auth required to load the page — the JS handles auth)
 app.get(`/${ADMIN_ROUTE}`, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// 404 fallback
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ====== START SERVER ======
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║                                                      ║
@@ -714,13 +602,17 @@ app.listen(PORT, () => {
 ╚══════════════════════════════════════════════════════╝
   `);
 
-  // Migrated inquiry count
-  const existingCount = loadInquiries().length;
-  if (existingCount > 0) {
-    console.log(`📊  ${existingCount} inquiries stored in database`);
+  // Initialise database
+  await db.init();
+  if (db.isUsingPostgres()) {
+    await db.createTable();
+    // Migrate existing file-based inquiries into PostgreSQL
+    await db.migrateFileInquiries(INQUIRIES_FILE);
   }
 
-  // Warn if ADMIN_SYNC_URL is not configured
+  const stats = await db.getInquiryStats();
+  console.log(`📊  ${stats.total} inquiries stored${db.isUsingPostgres() ? ' (PostgreSQL)' : ''}`);
+
   if (!ADMIN_SYNC_URL && process.env.NODE_ENV === 'production') {
     console.log('⚠️  ADMIN_SYNC_URL not set — inquiries will NOT be synced to admin server');
     console.log('   Set ADMIN_SYNC_URL in your .env or Render environment variables');

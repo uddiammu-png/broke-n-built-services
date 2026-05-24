@@ -37,3 +37,6 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      # PostgreSQL — created on Render and auto-injected into connected services
+      - key: DATABASE_URL
+        sync: false

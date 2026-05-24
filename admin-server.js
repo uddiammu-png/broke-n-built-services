@@ -4,80 +4,13 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || process.env.ADMIN_PORT || 3001;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'venki@1981';
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Venkatesh Reddy G';
 const INQUIRIES_FILE = path.join(__dirname, 'admin-inquiries', 'inquiries.json');
-
-// ====== INQUIRIES STORAGE HELPERS ======
-function loadInquiries() {
-  try {
-    if (fs.existsSync(INQUIRIES_FILE)) {
-      const data = fs.readFileSync(INQUIRIES_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error('Failed to load inquiries:', err.message);
-  }
-  return [];
-}
-
-function saveInquiries(inquiries) {
-  try {
-    const dir = path.dirname(INQUIRIES_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(INQUIRIES_FILE, JSON.stringify(inquiries, null, 2));
-  } catch (err) {
-    console.error('Failed to save inquiries:', err.message);
-  }
-}
-
-function addInquiry(inquiry) {
-  const inquiries = loadInquiries();
-  inquiries.push({
-    ...inquiry,
-    id: Date.now().toString(),
-    timestamp: new Date().toISOString(),
-    read: false
-  });
-  saveInquiries(inquiries);
-  return inquiry;
-}
-
-function updateInquiry(id, updates) {
-  const inquiries = loadInquiries();
-  const idx = inquiries.findIndex(i => i.id === id);
-  if (idx === -1) return null;
-  inquiries[idx] = { ...inquiries[idx], ...updates };
-  saveInquiries(inquiries);
-  return inquiries[idx];
-}
-
-function deleteInquiry(id) {
-  const inquiries = loadInquiries();
-  const filtered = inquiries.filter(i => i.id !== id);
-  if (filtered.length === inquiries.length) return false;
-  saveInquiries(filtered);
-  return true;
-}
-
-function getInquiryStats() {
-  const inquiries = loadInquiries();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  return {
-    total: inquiries.length,
-    unread: inquiries.filter(i => !i.read).length,
-    thisMonth: inquiries.filter(i => new Date(i.timestamp) >= monthStart).length,
-    today: inquiries.filter(i => new Date(i.timestamp) >= todayStart).length
-  };
-}
 
 // ====== SESSION SETUP ======
 app.use(session({
@@ -102,9 +35,7 @@ app.use(express.static(path.join(__dirname)));
 
 // ====== ADMIN AUTH MIDDLEWARE ======
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.isAdmin) {
-    return next();
-  }
+  if (req.session && req.session.isAdmin) return next();
   res.status(401).json({ error: 'Unauthorized. Please log in.' });
 }
 
@@ -132,40 +63,61 @@ app.get('/api/admin/check', (req, res) => {
 });
 
 // ====== ADMIN API ENDPOINTS (Protected) ======
-app.get('/api/admin/stats', requireAdmin, (req, res) => {
-  res.json(getInquiryStats());
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    const stats = await db.getInquiryStats();
+    res.json(stats);
+  } catch (err) {
+    console.error('Error fetching stats:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
 });
 
-app.get('/api/admin/inquiries', requireAdmin, (req, res) => {
-  const inquiries = loadInquiries();
-  inquiries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  res.json(inquiries);
+app.get('/api/admin/inquiries', requireAdmin, async (req, res) => {
+  try {
+    const inquiries = await db.loadInquiries();
+    res.json(inquiries);
+  } catch (err) {
+    console.error('Error fetching inquiries:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
+  }
 });
 
-app.put('/api/admin/inquiries/:id/read', requireAdmin, (req, res) => {
-  const inquiry = updateInquiry(req.params.id, { read: true });
-  if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
-  res.json({ success: true, inquiry });
+app.put('/api/admin/inquiries/:id/read', requireAdmin, async (req, res) => {
+  try {
+    const inquiry = await db.updateInquiry(req.params.id, { read: true });
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true, inquiry });
+  } catch (err) {
+    console.error('Error marking inquiry as read:', err);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
 });
 
-app.put('/api/admin/inquiries/:id/unread', requireAdmin, (req, res) => {
-  const inquiry = updateInquiry(req.params.id, { read: false });
-  if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
-  res.json({ success: true, inquiry });
+app.put('/api/admin/inquiries/:id/unread', requireAdmin, async (req, res) => {
+  try {
+    const inquiry = await db.updateInquiry(req.params.id, { read: false });
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true, inquiry });
+  } catch (err) {
+    console.error('Error marking inquiry as unread:', err);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
 });
 
-app.delete('/api/admin/inquiries/:id', requireAdmin, (req, res) => {
-  const deleted = deleteInquiry(req.params.id);
-  if (!deleted) return res.status(404).json({ error: 'Inquiry not found' });
-  res.json({ success: true });
+app.delete('/api/admin/inquiries/:id', requireAdmin, async (req, res) => {
+  try {
+    const deleted = await db.deleteInquiry(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting inquiry:', err);
+    res.status(500).json({ error: 'Failed to delete inquiry' });
+  }
 });
 
 app.get('/api/admin/email-status', requireAdmin, (req, res) => {
-  res.json({
-    configured: isEmailConfigured,
-    host: emailConfig.host,
-    to: emailConfig.to
-  });
+  res.json({ configured: isEmailConfigured, host: emailConfig.host, to: emailConfig.to });
 });
 
 // ====== EMAIL NOTIFICATION CONFIG ======
@@ -263,48 +215,30 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Name, email, mobile number, and message are required' });
   }
 
-  const inquiry = {
-    name,
-    email,
-    phone: phone || 'Not provided',
-    service: service || 'Not specified',
-    message,
-    timestamp: new Date().toISOString()
-  };
+  const inquiry = { name, email, phone: phone || 'Not provided', service: service || 'Not specified', message };
 
   console.log('📋 Admin: New Contact Inquiry:', inquiry);
 
-  addInquiry(inquiry);
+  // Save via db module (PostgreSQL or file-based)
+  const saved = await db.addInquiry(inquiry);
 
   // Save individual backup file
   try {
     const inquiriesDir = path.join(__dirname, 'admin-inquiries');
-    if (!fs.existsSync(inquiriesDir)) {
-      fs.mkdirSync(inquiriesDir, { recursive: true });
-    }
-    fs.writeFileSync(
-      path.join(inquiriesDir, `inquiry-${Date.now()}.json`),
-      JSON.stringify(inquiry, null, 2)
-    );
+    if (!fs.existsSync(inquiriesDir)) fs.mkdirSync(inquiriesDir, { recursive: true });
+    fs.writeFileSync(path.join(inquiriesDir, `inquiry-${Date.now()}.json`), JSON.stringify(inquiry, null, 2));
   } catch (err) {
     console.error('Failed to save backup inquiry file:', err.message);
   }
 
   await sendEmailNotification(inquiry);
-
-  res.json({
-    success: true,
-    message: 'Thank you! We have received your inquiry and will contact you shortly.'
-  });
+  res.json({ success: true, message: 'Thank you! We have received your inquiry and will contact you shortly.' });
 });
 
 // ====== SYNC INQUIRIES FROM MAIN SERVER ======
-// The main site will POST new inquiries here so both servers stay in sync
-// Protected by SYNC_SECRET token to prevent unauthorized data injection
 const SYNC_SECRET = process.env.SYNC_SECRET || '';
 
-app.post('/api/sync/inquiry', (req, res) => {
-  // Require sync secret token
+app.post('/api/sync/inquiry', async (req, res) => {
   const token = req.headers['x-sync-token'] || req.query.token;
   if (SYNC_SECRET && token !== SYNC_SECRET) {
     return res.status(401).json({ error: 'Invalid sync token' });
@@ -324,7 +258,7 @@ app.post('/api/sync/inquiry', (req, res) => {
     timestamp: timestamp || new Date().toISOString()
   };
 
-  addInquiry(inquiry);
+  await db.addInquiry(inquiry);
   console.log('🔄 Admin: Synced inquiry from main server:', name);
   res.json({ success: true });
 });
@@ -334,23 +268,20 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Serve at /admin too for compatibility
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', adminName: ADMIN_NAME });
 });
 
-// 404 fallback - serve admin page for any unrecognized routes
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // ====== START SERVER ======
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║                                                      ║
@@ -360,14 +291,16 @@ app.listen(PORT, () => {
 ║   👤  Admin: ${ADMIN_NAME}                             ║
 ║   📧  brokenbuiltservices@gmail.com                  ║
 ║                                                      ║
-║   📊  Inquiries stored in admin-inquiries/           ║
-║   🔑  Password set in .env file                      ║
-║                                                      ║
 ╚══════════════════════════════════════════════════════╝
   `);
 
-  const existingCount = loadInquiries().length;
-  if (existingCount > 0) {
-    console.log(`📊  ${existingCount} inquiries in admin database`);
+  // Initialise database
+  await db.init({ inquiriesFile: INQUIRIES_FILE });
+  if (db.isUsingPostgres()) {
+    await db.createTable();
+    await db.migrateFileInquiries(INQUIRIES_FILE);
   }
+
+  const stats = await db.getInquiryStats();
+  console.log(`📊  ${stats.total} inquiries stored${db.isUsingPostgres() ? ' (PostgreSQL)' : ''}`);
 });
