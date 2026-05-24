@@ -402,6 +402,7 @@ const pages = {
   '/': 'index.html',
   '/about': 'about.html',
   '/services': 'services.html',
+  '/projects': 'projects.html',
   '/contact': 'contact.html'
 };
 
@@ -428,7 +429,7 @@ app.listen(PORT, () => {
 ║   📧  brokenbuiltservices@gmail.com                  ║
 ║   📞  +91 7019300855                                 ║
 ║                                                      ║
-║   📄  Pages: Home | About | Services | Contact       ║
+║   📄  Pages: Home | About | Services | Projects | Contact  ║
 ║                                                      ║
 ║   💡  Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env ║
 ║        to send inquiry notifications via email       ║
