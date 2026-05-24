@@ -511,55 +511,66 @@ app.post('/api/contact', async (req, res) => {
 
   console.log('📋 New Contact Inquiry:', inquiry);
 
-  // Save via db module (PostgreSQL or file-based)
+  // Save via db module (PostgreSQL or file-based) — ESSENTIAL, keep awaited
   const saved = await db.addInquiry(inquiry);
   inquiry.timestamp = saved.timestamp;
 
-  // Also save as individual file for backup
-  try {
-    const inquiriesDir = path.join(__dirname, 'inquiries');
-    if (!fs.existsSync(inquiriesDir)) fs.mkdirSync(inquiriesDir, { recursive: true });
-    fs.writeFileSync(path.join(inquiriesDir, `inquiry-${Date.now()}.json`), JSON.stringify(inquiry, null, 2));
-  } catch (err) {
-    console.error('Failed to save backup inquiry file:', err.message);
-  }
-
-  // Try to send email notification
-  await sendEmailNotification(inquiry);
-
-  // Sync inquiry to standalone admin server (if configured)
-  if (ADMIN_SYNC_URL) {
-    try {
-      const https = require('https');
-      const http = require('http');
-      const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
-      const body = JSON.stringify(inquiry);
-      const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
-      const syncReq = transport.request(url.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
-        },
-        timeout: 5000
-      }, (syncRes) => {
-        console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
-      });
-      syncReq.on('error', (err) => {
-        console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-      });
-      syncReq.write(body);
-      syncReq.end();
-    } catch (err) {
-      console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-    }
-  }
-
+  // Respond to client IMMEDIATELY — don't make them wait for email/backup/sync
   res.json({
     success: true,
     message: 'Thank you! We have received your inquiry and will contact you shortly.'
   });
+
+  // ====== BACKGROUND TASKS (fire-and-forget after response) ======
+
+  // Save backup file asynchronously
+  setImmediate(async () => {
+    try {
+      const inquiriesDir = path.join(__dirname, 'inquiries');
+      if (!fs.existsSync(inquiriesDir)) fs.mkdirSync(inquiriesDir, { recursive: true });
+      await fs.promises.writeFile(path.join(inquiriesDir, `inquiry-${Date.now()}.json`), JSON.stringify(inquiry, null, 2));
+    } catch (err) {
+      console.error('Failed to save backup inquiry file:', err.message);
+    }
+  });
+
+  // Send email notification in background
+  setImmediate(() => {
+    sendEmailNotification(inquiry).catch(err =>
+      console.error('Background email failed:', err.message)
+    );
+  });
+
+  // Sync inquiry to standalone admin server (if configured) — in background
+  if (ADMIN_SYNC_URL) {
+    setImmediate(() => {
+      try {
+        const https = require('https');
+        const http = require('http');
+        const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
+        const body = JSON.stringify(inquiry);
+        const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
+        const syncReq = transport.request(url.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+            ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
+          },
+          timeout: 5000
+        }, (syncRes) => {
+          console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
+        });
+        syncReq.on('error', (err) => {
+          console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
+        });
+        syncReq.write(body);
+        syncReq.end();
+      } catch (err) {
+        console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
+      }
+    });
+  }
 });
 
 // ====== CRAWLER ESSENTIALS (explicit routes for SEO) ======
