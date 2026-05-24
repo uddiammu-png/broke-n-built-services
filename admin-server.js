@@ -7,6 +7,10 @@ const session = require('express-session');
 const db = require('./db');
 
 const app = express();
+
+// Trust Render's reverse proxy for secure cookies (HTTPS)
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || process.env.ADMIN_PORT || 3001;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'venki@1981';
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Venkatesh Reddy G';
