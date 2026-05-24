@@ -1,3 +1,8 @@
+# robots.txt for BROKE N BUILT SERVICES
+# https://broke-n-built-services.onrender.com
+
 User-agent: *
 Allow: /
+Disallow:
+
 Sitemap: https://broke-n-built-services.onrender.com/sitemap.xml

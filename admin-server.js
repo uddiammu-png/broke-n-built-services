@@ -276,10 +276,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', adminName: ADMIN_NAME });
 });
 
+// ====== 404 HANDLER ======
 app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'admin.html'));
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Endpoint not found' });
+  }
+  res.status(404).sendFile(path.join(__dirname, '404.html'));
 });
-
 // ====== START SERVER ======
 app.listen(PORT, async () => {
   console.log(`

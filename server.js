@@ -562,6 +562,17 @@ app.post('/api/contact', async (req, res) => {
   });
 });
 
+// ====== CRAWLER ESSENTIALS (explicit routes for SEO) ======
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.sendFile(path.join(__dirname, 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.sendFile(path.join(__dirname, 'sitemap.xml'));
+});
+
 // ====== SERVE PAGES ======
 const pages = {
   '/': 'index.html',
@@ -580,8 +591,13 @@ app.get(`/${ADMIN_ROUTE}`, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+// ====== 404 HANDLER (serves proper 404 page, not index.html) ======
 app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'index.html'));
+  // If it's an API route, return JSON
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Endpoint not found' });
+  }
+  res.status(404).sendFile(path.join(__dirname, '404.html'));
 });
 
 // ====== START SERVER ======
