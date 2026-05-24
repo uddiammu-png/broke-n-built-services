@@ -31,7 +31,19 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+
+// ====== SERVE ADMIN PAGE (must be BEFORE static to prevent index.html from overriding) ======
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.use(express.static(path.join(__dirname), {
+  index: false // Disable serving index.html for root path
+}));
 
 // ====== ADMIN AUTH MIDDLEWARE ======
 function requireAdmin(req, res, next) {
@@ -261,15 +273,6 @@ app.post('/api/sync/inquiry', async (req, res) => {
   await db.addInquiry(inquiry);
   console.log('🔄 Admin: Synced inquiry from main server:', name);
   res.json({ success: true });
-});
-
-// ====== SERVE ADMIN PAGE ======
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.get('/api/health', (req, res) => {
