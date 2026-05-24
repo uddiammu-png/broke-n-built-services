@@ -358,8 +358,8 @@ function generateSmartResponse(message) {
 app.post('/api/contact', async (req, res) => {
   const { name, email, phone, service, message } = req.body;
 
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'Name, email, and message are required' });
+  if (!name || !email || !phone || !message) {
+    return res.status(400).json({ error: 'Name, email, mobile number, and message are required' });
   }
 
   const inquiry = {
