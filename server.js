@@ -146,6 +146,7 @@ app.delete('/api/admin/inquiries/:id', requireAdmin, async (req, res) => {
 });
 
 // ====== EMAIL NOTIFICATION CONFIG ======
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const emailConfig = {
   host: process.env.EMAIL_HOST,
   port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -155,102 +156,143 @@ const emailConfig = {
   from: process.env.EMAIL_FROM || 'noreply@broke-n-built-services.com'
 };
 
-const isEmailConfigured = !!(emailConfig.host && emailConfig.user && emailConfig.pass);
+// Use Resend SDK if available (production on Render), otherwise fall back to SMTP nodemailer (local dev)
+const useResend = !!RESEND_API_KEY;
+const isEmailConfigured = useResend || !!(emailConfig.host && emailConfig.user && emailConfig.pass);
+
+// Lazy-loaded Resend client
+let resendClient = null;
+function getResendClient() {
+  if (!resendClient && useResend) {
+    const { Resend } = require('resend');
+    resendClient = new Resend(RESEND_API_KEY);
+  }
+  return resendClient;
+}
+
+function buildEmailHtml(inquiry) {
+  const mobileDisplay = inquiry.phone && inquiry.phone !== 'Not provided' ? `<a href="tel:${inquiry.phone}">${inquiry.phone}</a>` : 'Not provided';
+  const serviceLabel = inquiry.service && inquiry.service !== 'Not specified'
+    ? inquiry.service.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    : 'Not specified';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head><style>
+      body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+      .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+      .header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 32px 24px; text-align: center; }
+      .header h1 { color: #ffffff; margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+      .header p { color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 0.9rem; }
+      .body { padding: 28px 24px; }
+      .field { margin-bottom: 20px; display: flex; }
+      .field-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; min-width: 120px; padding-top: 2px; }
+      .field-value { font-size: 1rem; color: #1a1a1a; font-weight: 500; }
+      .field-value a { color: #f97316; text-decoration: none; }
+      .field-value a:hover { text-decoration: underline; }
+      .message-box { background: #f8f9fa; border-left: 4px solid #f97316; padding: 16px 20px; border-radius: 8px; margin-top: 4px; width: 100%; }
+      .message-box p { margin: 0; color: #444; line-height: 1.7; font-size: 0.95rem; }
+      .divider { height: 1px; background: linear-gradient(90deg, transparent, #e0e0e0, transparent); margin: 24px 0; }
+      .footer { padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 0.75rem; color: #999; text-align: center; line-height: 1.6; }
+      .badge { display: inline-block; background: rgba(249,115,22,0.1); color: #ea580c; padding: 2px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+      @media (max-width: 480px) { .field { flex-direction: column; } .field-label { margin-bottom: 4px; } }
+    </style></head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔨 New Client Inquiry</h1>
+          <p>BROKE N BUILT SERVICES - Website Contact Form</p>
+        </div>
+        <div class="body">
+          <div class="field">
+            <div class="field-label">Name</div>
+            <div class="field-value">${inquiry.name}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Email</div>
+            <div class="field-value"><a href="mailto:${inquiry.email}">${inquiry.email}</a></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Mobile</div>
+            <div class="field-value">${mobileDisplay}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Service</div>
+            <div class="field-value"><span class="badge">${serviceLabel}</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="field">
+            <div class="field-label">Message</div>
+            <div class="message-box"><p>${inquiry.message.replace(/\n/g, '<br>')}</p></div>
+          </div>
+          <div class="divider"></div>
+          <div class="field">
+            <div class="field-label">Received</div>
+            <div class="field-value">${new Date(inquiry.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} IST</div>
+          </div>
+        </div>
+        <div class="footer">
+          BROKE N BUILT SERVICES &bull; #8, Adibyraveshwara Nilaya, 3rd Floor, Green Wood Street, Cheemasandra, Bangalore-560049<br>
+          📞 +91 7019300855 &bull; 📧 brokenbuiltservices@gmail.com
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 async function sendEmailNotification(inquiry) {
   if (!isEmailConfigured) {
-    console.log('⚠️  Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env');
+    const msg = useResend
+      ? '⚠️  Resend API key not set. Set RESEND_API_KEY in your .env'
+      : '⚠️  Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env';
+    console.log(msg);
     return false;
   }
 
+  const subject = `🔨 New Inquiry from ${inquiry.name} - ${inquiry.service && inquiry.service !== 'Not specified'
+    ? inquiry.service.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    : 'Not specified'}`;
+
   try {
-    const nodemailer = require('nodemailer');
+    if (useResend) {
+      // Use Resend SDK (production on Render — works via HTTPS, not SMTP)
+      const resend = getResendClient();
+      const { error } = await resend.emails.send({
+        from: `"Broke N Built Website" <${emailConfig.from}>`,
+        to: [emailConfig.to],
+        subject,
+        html: buildEmailHtml(inquiry)
+      });
 
-    const transporter = nodemailer.createTransport({
-      host: emailConfig.host,
-      port: emailConfig.port,
-      secure: emailConfig.port === 465,
-      auth: { user: emailConfig.user, pass: emailConfig.pass }
-    });
+      if (error) {
+        console.error('❌ Resend API error:', error.message || JSON.stringify(error));
+        return false;
+      }
 
-    const mobileDisplay = inquiry.phone && inquiry.phone !== 'Not provided' ? `<a href="tel:${inquiry.phone}">${inquiry.phone}</a>` : 'Not provided';
-    const serviceLabel = inquiry.service && inquiry.service !== 'Not specified'
-      ? inquiry.service.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-      : 'Not specified';
+      console.log('✅ Email notification sent via Resend to', emailConfig.to);
+      return true;
+    } else {
+      // Fall back to nodemailer SMTP (local dev)
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.port === 465,
+        auth: { user: emailConfig.user, pass: emailConfig.pass }
+      });
 
-    const mailOptions = {
-      from: `"Broke N Built Website" <${emailConfig.from}>`,
-      to: emailConfig.to,
-      subject: `🔨 New Inquiry from ${inquiry.name} - ${serviceLabel}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head><style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
-          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-          .header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 32px 24px; text-align: center; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
-          .header p { color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 0.9rem; }
-          .body { padding: 28px 24px; }
-          .field { margin-bottom: 20px; display: flex; }
-          .field-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; min-width: 120px; padding-top: 2px; }
-          .field-value { font-size: 1rem; color: #1a1a1a; font-weight: 500; }
-          .field-value a { color: #f97316; text-decoration: none; }
-          .field-value a:hover { text-decoration: underline; }
-          .message-box { background: #f8f9fa; border-left: 4px solid #f97316; padding: 16px 20px; border-radius: 8px; margin-top: 4px; width: 100%; }
-          .message-box p { margin: 0; color: #444; line-height: 1.7; font-size: 0.95rem; }
-          .divider { height: 1px; background: linear-gradient(90deg, transparent, #e0e0e0, transparent); margin: 24px 0; }
-          .footer { padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #eee; font-size: 0.75rem; color: #999; text-align: center; line-height: 1.6; }
-          .badge { display: inline-block; background: rgba(249,115,22,0.1); color: #ea580c; padding: 2px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-          @media (max-width: 480px) { .field { flex-direction: column; } .field-label { margin-bottom: 4px; } }
-        </style></head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🔨 New Client Inquiry</h1>
-              <p>BROKE N BUILT SERVICES - Website Contact Form</p>
-            </div>
-            <div class="body">
-              <div class="field">
-                <div class="field-label">Name</div>
-                <div class="field-value">${inquiry.name}</div>
-              </div>
-              <div class="field">
-                <div class="field-label">Email</div>
-                <div class="field-value"><a href="mailto:${inquiry.email}">${inquiry.email}</a></div>
-              </div>
-              <div class="field">
-                <div class="field-label">Mobile</div>
-                <div class="field-value">${mobileDisplay}</div>
-              </div>
-              <div class="field">
-                <div class="field-label">Service</div>
-                <div class="field-value"><span class="badge">${serviceLabel}</span></div>
-              </div>
-              <div class="divider"></div>
-              <div class="field">
-                <div class="field-label">Message</div>
-                <div class="message-box"><p>${inquiry.message.replace(/\n/g, '<br>')}</p></div>
-              </div>
-              <div class="divider"></div>
-              <div class="field">
-                <div class="field-label">Received</div>
-                <div class="field-value">${new Date(inquiry.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} IST</div>
-              </div>
-            </div>
-            <div class="footer">
-              BROKE N BUILT SERVICES &bull; #8, Adibyraveshwara Nilaya, 3rd Floor, Green Wood Street, Cheemasandra, Bangalore-560049<br>
-              📞 +91 7019300855 &bull; 📧 brokenbuiltservices@gmail.com
-            </div>
-          </div>
-        </body>
-        </html>
-      `
-    };
+      await transporter.sendMail({
+        from: `"Broke N Built Website" <${emailConfig.from}>`,
+        to: emailConfig.to,
+        subject,
+        html: buildEmailHtml(inquiry)
+      });
 
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Email notification sent to', emailConfig.to);
-    return true;
+      console.log('✅ Email notification sent via SMTP to', emailConfig.to);
+      return true;
+    }
   } catch (err) {
     console.error('❌ Failed to send email:', err.message);
     return false;
@@ -496,104 +538,132 @@ function generateSmartResponse(message) {
 
 // ====== EMAIL CONFIG ENDPOINT ======
 app.get('/api/admin/email-status', requireAdmin, (req, res) => {
-  res.json({ configured: isEmailConfigured, host: emailConfig.host, to: emailConfig.to });
+  res.json({
+    configured: isEmailConfigured,
+    method: useResend ? 'resend' : 'smtp',
+    host: useResend ? 'api.resend.com' : emailConfig.host,
+    to: emailConfig.to,
+    from: emailConfig.from
+  });
 });
 
-// ====== SMTP DIAGNOSTIC ENDPOINT ======
+// ====== EMAIL DIAGNOSTIC ENDPOINT ======
 app.get('/api/admin/diagnose-email', requireAdmin, async (req, res) => {
   const diagnostic = {
     configured: isEmailConfigured,
-    host: emailConfig.host,
-    port: emailConfig.port,
-    user: emailConfig.user,
+    method: useResend ? 'resend' : 'smtp',
     to: emailConfig.to,
     from: emailConfig.from,
-    passLength: emailConfig.pass ? emailConfig.pass.length : 0,
-    passHasSpaces: emailConfig.pass ? emailConfig.pass.includes(' ') : false
+    resendKeySet: useResend,
+    resendKeyPrefix: useResend ? RESEND_API_KEY.slice(0, 5) + '...' : null
   };
 
   if (!isEmailConfigured) {
-    diagnostic.error = 'Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS.';
+    diagnostic.error = useResend
+      ? 'Resend not configured. Set RESEND_API_KEY in your environment variables.'
+      : 'Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in your environment variables.';
     return res.json(diagnostic);
   }
 
-  // Test SMTP connection
-  try {
-    const nodemailer = require('nodemailer');
-
-    const transporter = nodemailer.createTransport({
-      host: emailConfig.host,
-      port: emailConfig.port,
-      secure: emailConfig.port === 465,
-      auth: { user: emailConfig.user, pass: emailConfig.pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000
-    });
-
-    // Test 1: Verify SMTP connection
-    diagnostic.connectionTest = { label: 'SMTP Connection (verify())' };
+  if (useResend) {
+    // —— Test Resend API ——
     try {
-      const start = Date.now();
-      await transporter.verify();
-      diagnostic.connectionTest.passed = true;
-      diagnostic.connectionTest.ms = Date.now() - start;
-    } catch (err) {
-      diagnostic.connectionTest.passed = false;
-      diagnostic.connectionTest.error = err.message;
-      diagnostic.connectionTest.code = err.code || null;
-      diagnostic.connectionTest.command = err.command || null;
-    }
+      const resend = getResendClient();
 
-    // Test 2: Send a test email
-    diagnostic.sendTest = { label: 'Send Test Email' };
-    try {
-      const start = Date.now();
-      const info = await transporter.sendMail({
-        from: `"SMTP Diagnostic" <${emailConfig.from}>`,
-        to: emailConfig.to,
-        subject: `🧪 SMTP Diagnostic Test — ${new Date().toLocaleString()}`,
-        text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, the SMTP email system is working correctly from the server.\n\nSent at: ${new Date().toISOString()}`
-      });
-      diagnostic.sendTest.passed = true;
-      diagnostic.sendTest.ms = Date.now() - start;
-      diagnostic.sendTest.messageId = info.messageId;
-    } catch (err) {
-      diagnostic.sendTest.passed = false;
-      diagnostic.sendTest.error = err.message;
-      diagnostic.sendTest.code = err.code || null;
-      diagnostic.sendTest.command = err.command || null;
-    }
-
-    // Test 3: Attempt WITHOUT spaces in password (in case Gmail rejects spaces)
-    if (emailConfig.pass && emailConfig.pass.includes(' ')) {
-      diagnostic.noSpacesTest = { label: 'Password without spaces' };
+      // Test 1: Send a test email via Resend
+      diagnostic.sendTest = { label: 'Resend API Test' };
       try {
-        const noSpaceTransporter = nodemailer.createTransport({
-          host: emailConfig.host,
-          port: emailConfig.port,
-          secure: emailConfig.port === 465,
-          auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
-          tls: { rejectUnauthorized: false },
-          connectionTimeout: 10000
-        });
         const start = Date.now();
-        await noSpaceTransporter.verify();
-        diagnostic.noSpacesTest.passed = true;
-        diagnostic.noSpacesTest.ms = Date.now() - start;
-        diagnostic.noSpacesTest.note = 'Password works without spaces — update EMAIL_PASS to remove spaces';
+        const { data, error } = await resend.emails.send({
+          from: `"Email Diagnostic" <${emailConfig.from}>`,
+          to: [emailConfig.to],
+          subject: `🧪 Resend Diagnostic Test — ${new Date().toLocaleString()}`,
+          text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, Resend is working correctly from the Render server.\n\nSent at: ${new Date().toISOString()}`
+        });
+
+        if (error) {
+          diagnostic.sendTest.passed = false;
+          diagnostic.sendTest.error = error.message || JSON.stringify(error);
+        } else {
+          diagnostic.sendTest.passed = true;
+          diagnostic.sendTest.ms = Date.now() - start;
+          diagnostic.sendTest.id = data?.id || 'sent';
+        }
       } catch (err) {
-        diagnostic.noSpacesTest.passed = false;
-        diagnostic.noSpacesTest.error = err.message;
+        diagnostic.sendTest.passed = false;
+        diagnostic.sendTest.error = err.message;
       }
+
+      diagnostic.conclusion = diagnostic.sendTest.passed
+        ? '✅ Resend is working. Check your inbox (and Spam/Promotions) for the test email.'
+        : '❌ Resend API call failed. Check: your RESEND_API_KEY is correct, your domain is verified on Resend, and your DNS records (SPF/DKIM) are set up.';
+
+    } catch (err) {
+      diagnostic.criticalError = err.message;
+      diagnostic.conclusion = '❌ Fatal error running Resend diagnostic.';
     }
+  } else {
+    // —— Test SMTP connection (fallback for local dev) ——
+    diagnostic.host = emailConfig.host;
+    diagnostic.port = emailConfig.port;
+    diagnostic.user = emailConfig.user;
+    diagnostic.passLength = emailConfig.pass ? emailConfig.pass.length : 0;
+    diagnostic.passHasSpaces = emailConfig.pass ? emailConfig.pass.includes(' ') : false;
 
-    diagnostic.conclusion = diagnostic.connectionTest.passed && diagnostic.sendTest.passed
-      ? '✅ SMTP is fully working. Check your Spam/Promotions folder — emails may be filtered.'
-      : '❌ SMTP has issues. See test results above for details. You may need to check: the app password, Gmail security settings, or Render\'s outbound network.';
+    try {
+      const nodemailer = require('nodemailer');
 
-  } catch (err) {
-    diagnostic.criticalError = err.message;
-    diagnostic.conclusion = '❌ Fatal error running diagnostic.';
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.port === 465,
+        auth: { user: emailConfig.user, pass: emailConfig.pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 10000
+      });
+
+      // Test 1: Verify SMTP connection
+      diagnostic.connectionTest = { label: 'SMTP Connection (verify())' };
+      try {
+        const start = Date.now();
+        await transporter.verify();
+        diagnostic.connectionTest.passed = true;
+        diagnostic.connectionTest.ms = Date.now() - start;
+      } catch (err) {
+        diagnostic.connectionTest.passed = false;
+        diagnostic.connectionTest.error = err.message;
+        diagnostic.connectionTest.code = err.code || null;
+        diagnostic.connectionTest.command = err.command || null;
+      }
+
+      // Test 2: Send a test email
+      diagnostic.sendTest = { label: 'Send Test Email' };
+      try {
+        const start = Date.now();
+        const info = await transporter.sendMail({
+          from: `"SMTP Diagnostic" <${emailConfig.from}>`,
+          to: emailConfig.to,
+          subject: `🧪 SMTP Diagnostic Test — ${new Date().toLocaleString()}`,
+          text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, the SMTP email system is working correctly from the server.\n\nSent at: ${new Date().toISOString()}`
+        });
+        diagnostic.sendTest.passed = true;
+        diagnostic.sendTest.ms = Date.now() - start;
+        diagnostic.sendTest.messageId = info.messageId;
+      } catch (err) {
+        diagnostic.sendTest.passed = false;
+        diagnostic.sendTest.error = err.message;
+        diagnostic.sendTest.code = err.code || null;
+        diagnostic.sendTest.command = err.command || null;
+      }
+
+      diagnostic.conclusion = diagnostic.connectionTest.passed && diagnostic.sendTest.passed
+        ? '✅ SMTP is fully working. Check your Spam/Promotions folder — emails may be filtered.'
+        : '❌ SMTP has issues. See test results above for details.';
+
+    } catch (err) {
+      diagnostic.criticalError = err.message;
+      diagnostic.conclusion = '❌ Fatal error running SMTP diagnostic.';
+    }
   }
 
   res.json(diagnostic);
