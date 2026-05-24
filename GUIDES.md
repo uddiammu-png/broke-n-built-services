@@ -137,12 +137,197 @@ OPENROUTER_API_KEY=sk-or-your-key-here
 
 ---
 
+## 🌍 6. GOOGLE BUSINESS PROFILE (Appear on Google Maps & Local Search)
+
+This is how customers in Bangalore find you when they search "renovation near me" or "best renovation company Bangalore" on Google!
+
+### What you get:
+- ✅ Show up on **Google Maps** when people search for renovation services
+- ✅ Appear in the **local 3-pack** at the top of Google search results
+- ✅ Customers can **call, message, or get directions** directly from Google
+- ✅ Collect **reviews** from happy customers
+- ✅ Post **photos of your projects** (before/after)
+
+---
+
+### Step 1: Go to Google Business Profile
+Open your browser and go to:
+**https://business.google.com**
+
+Sign in with: **brokenbuiltservices@gmail.com**
+
+---
+
+### Step 2: Add Your Business
+Click **"Add your business"** or **"Create a profile"**
+
+---
+
+### Step 3: Fill in Business Details
+
+Use these exact details:
+
+| Field | Value |
+|-------|-------|
+| **Business Name** | `BROKE N BUILT SERVICES` |
+| **Category** | Search and select **"Renovation Contractor"** or **"Construction Company"** |
+| **Phone** | `+91 7019300855` |
+| **Website** | `https://broke-n-built-services.onrender.com/` |
+
+---
+
+### Step 4: Enter Your Address
+
+```
+#8, Adibyraveshwara Nilaya, 3rd Floor
+Green Wood Street, Cheemasandra
+Virgonagar Post
+Bangalore - 560049
+Karnataka
+```
+
+**Important:** Since you visit client sites (not a walk-in office), Google will ask:
+> "Do you serve customers at this location?"
+
+Select **"Yes, I serve customers at my location"** → this makes your address visible on Maps.
+
+If you prefer to hide your exact address (since you go to clients):
+- Select **"No, I deliver goods or serve customers at their location"**
+- Then you can set a **service area** like: **Bangalore, Karnataka**
+- This way your business shows up for people searching in Bangalore but your home address stays private
+
+---
+
+### Step 5: Set Service Area (Recommended)
+
+If you selected "serve at customer location":
+1. Click **Add service area**
+2. Start typing and add:
+   - `Bangalore`
+   - `Whitefield`
+   - `Electronic City`
+   - `HSR Layout`
+   - `Koramangala`
+   - `Indiranagar`
+   - `JP Nagar`
+   - `Yelahanka`
+   - (Add any other areas you work in)
+
+This makes your business show up when someone in any of these areas searches!
+
+---
+
+### Step 6: Add Business Hours
+
+| Day | Hours |
+|-----|-------|
+| Monday - Saturday | 9:00 AM – 7:00 PM |
+| Sunday | Appointment only (check "Open by appointment") |
+
+---
+
+### Step 7: Add Photos (Crucial!)
+
+Google profiles **with photos** get 42% more requests for directions and 35% more clicks!
+
+Upload at least:
+- 📸 **Logo** → `/images/logo.png` (you already have this!)
+- 🏠 **Cover photo** → Use `/images/hero-bg.jpg` or `/images/about-renovation.jpg`
+- 🛠️ **Project photos** → Add before/after shots of your work
+- 🏗️ **Team photo** → `/images/construction-team.jpg`
+
+---
+
+### Step 8: Write a Business Description
+
+Copy and paste this description:
+
+```
+BROKE N BUILT SERVICES is Bangalore's trusted renovation and space transformation company with 12+ years of experience and 150+ completed projects. We specialize in transforming damaged, outdated, and incomplete spaces into functional, modern environments.
+
+Services: Renovation Works, False Ceiling Installation, Painting & Finishing, Flooring Solutions, Partition Works, Electrical & Plumbing, Custom Interiors, Repair & Maintenance, and Complete Space Transformation.
+
+We serve residential and commercial clients across Bangalore with quality craftsmanship, smart design, and timely execution.
+
+📞 Call us at +91 7019300855 for a free consultation and quote!
+```
+
+---
+
+### Step 9: Set Service Categories
+
+Select **all that apply**:
+- ✅ Renovation Contractor
+- ✅ Interior Designer
+- ✅ Painting Contractor
+- ✅ Flooring Contractor
+- ✅ Construction Company
+- ✅ Home Improvement Service
+
+---
+
+### Step 10: Verification
+
+Google will send a **postcard** to your business address with a verification code.
+- 📬 Takes **5-10 days** to arrive by post
+- 📮 Enter the code on your Google Business Profile dashboard
+- ✅ Once verified, your profile goes live on Google Maps!
+
+**Faster option (if available):** Google may offer **phone verification** or **email verification** — choose that if you see it!
+
+---
+
+### Step 11: Finish & Optimize
+
+After verification, complete your profile:
+
+- [ ] **Add Q&A** — Add common questions like "Do you offer free quotes?" and answer them
+- [ ] **Add posts** — Share project photos as "Updates" (like social media posts)
+- [ ] **Ask for reviews** — After completing a project, send clients the review link:
+      `https://g.page/r/your-business-slug/review`
+      (Google will give you this link after verification)
+- [ ] **Link to Google Search Console** — Under **Performance** > **Google Search Console**, link your account
+
+---
+
+### Step 12: Share Your Google Maps Link
+
+Once verified, your business will have a Google Maps link like:
+`https://maps.google.com/?cid=XXXXXXXXXX`
+
+Share this on your website, WhatsApp, and with clients! I can add it to your website footer once you give me the link.
+
+---
+
+## ⏱️ Timeline Expectations
+
+| Time | What Happens |
+|------|-------------|
+| Now | Create profile & submit for verification |
+| 5-10 days | Postcard arrives with verification code |
+| After verification | Profile appears on Google Maps within 48 hours |
+| 2-4 weeks | Start appearing in local search results |
+| 1-3 months | Build reviews → Move up in rankings |
+
+---
+
+## 📈 Pro Tips
+
+1. **Reviews matter most** — A 5-star review is the #1 factor for showing up in local search. Always ask happy clients to leave a review!
+2. **Post regularly** — Share at least 1 photo per week on your profile
+3. **Respond to every review** — Reply to all 5-star and even 1-star reviews professionally
+4. **Keep hours updated** — Especially during holidays
+5. **Use GBP Insights** — See how many people found you on Maps, called you, or visited your website
+
+---
+
 ## ✅ Quick Checklist
 
 - [ ] Got Gmail App Password? → Create `.env` file
-- [ ] Got OpenAI API key? → Add to `.env`
-- [ ] Push to GitHub → Connect to Render → Site goes live
-- [ ] Submit sitemap to Google Search Console
-- [ ] Send me your company logo
+- [ ] Added OpenRouter API key → AI Chatbot active
+- [ ] Submitted sitemap to Google Search Console
+- [ ] Created Google Business Profile
+- [ ] Waiting for verification postcard (5-10 days)
+- [ ] Send me your company logo ✅ Done!
 
 Need help with any step? Just ask me!
