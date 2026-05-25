@@ -332,18 +332,11 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 // ====== SERVE PAGES ======
-const pages = {
-  '/': 'index.html',
-  '/about': 'about.html',
-  '/services': 'services.html',
-  '/projects': 'projects.html',
-  '/contact': 'contact.html'
-};
-
-app.get(Object.keys(pages), (req, res) => {
-  const page = pages[req.path];
-  if (page) res.sendFile(path.join(__dirname, page));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/about', (req, res) => res.sendFile(path.join(__dirname, 'about.html')));
+app.get('/services', (req, res) => res.sendFile(path.join(__dirname, 'services.html')));
+app.get('/projects', (req, res) => res.sendFile(path.join(__dirname, 'projects.html')));
+app.get('/contact', (req, res) => res.sendFile(path.join(__dirname, 'contact.html')));
 
 // ====== 404 HANDLER (serves proper 404 page, not index.html) ======
 app.use((req, res) => {
