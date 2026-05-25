@@ -355,6 +355,7 @@ app.use((req, res) => {
 });
 
 // ====== START SERVER ======
+console.log('🚀 Starting server...');
 app.listen(PORT, async () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
