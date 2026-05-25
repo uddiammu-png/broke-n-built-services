@@ -182,28 +182,41 @@ async function sendEmailNotification(inquiry) {
 
   // ── ATTEMPT 2: Nodemailer SMTP (fallback if Resend unavailable or failed) ─
   if (canUseSmtp) {
-    try {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: emailConfig.host,
-        port: emailConfig.port,
-        secure: emailConfig.port === 465,
-        auth: { user: emailConfig.user, pass: emailConfig.pass },
-        tls: { rejectUnauthorized: false }
-      });
+    // Try multiple port configurations since some cloud hosts block certain ports
+    const smtpConfigs = [
+      { host: emailConfig.host, port: emailConfig.port, secure: emailConfig.port === 465, label: `port ${emailConfig.port}` },
+      { host: 'smtp.gmail.com', port: 465, secure: true, label: 'port 465 (SSL)' },
+      { host: 'smtp.gmail.com', port: 587, secure: false, label: 'port 587 (TLS)' },
+      { host: 'smtp.gmail.com', port: 25, secure: false, label: 'port 25' }
+    ];
 
-      await transporter.sendMail({
-        from: `"Broke N Built Website" <${emailConfig.from}>`,
-        to: emailConfig.to,
-        subject,
-        html: buildEmailHtml(inquiry)
-      });
+    for (const cfg of smtpConfigs) {
+      // Skip duplicates
+      if (cfg.port === emailConfig.port && cfg.host === emailConfig.host && cfg.secure === (emailConfig.port === 465)) continue;
 
-      console.log('✅ Email notification sent via SMTP to', emailConfig.to);
-      return true;
-    } catch (err) {
-      console.error('❌ SMTP exception:', err.message);
-      lastError = err;
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: cfg.host,
+          port: cfg.port,
+          secure: cfg.secure,
+          auth: { user: emailConfig.user, pass: emailConfig.pass },
+          tls: { rejectUnauthorized: false }
+        });
+
+        await transporter.sendMail({
+          from: `"Broke N Built Website" <${emailConfig.from}>`,
+          to: emailConfig.to,
+          subject,
+          html: buildEmailHtml(inquiry)
+        });
+
+        console.log(`✅ Email notification sent via SMTP (${cfg.label}) to`, emailConfig.to);
+        return true;
+      } catch (err) {
+        console.error(`❌ SMTP ${cfg.label} failed:`, err.message);
+        lastError = err;
+      }
     }
   }
 
@@ -524,37 +537,58 @@ app.get('/api/diagnose-email', async (req, res) => {
     return res.json(results);
   }
 
-  // Test SMTP connectivity
+  // Test SMTP connectivity across multiple ports
   if (canUseSmtp) {
-    try {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: emailConfig.host,
-        port: emailConfig.port,
-        secure: emailConfig.port === 465,
-        auth: { user: emailConfig.user, pass: emailConfig.pass },
-        tls: { rejectUnauthorized: false }
-      });
+    const smtpConfigs = [
+      { host: emailConfig.host, port: emailConfig.port, secure: emailConfig.port === 465, label: 'configured port' },
+      { host: 'smtp.gmail.com', port: 465, secure: true, label: 'port 465 (SSL)' },
+      { host: 'smtp.gmail.com', port: 587, secure: false, label: 'port 587 (TLS)' },
+      { host: 'smtp.gmail.com', port: 25, secure: false, label: 'port 25' }
+    ];
 
-      await transporter.verify();
-      results.smtpTest = { success: true, message: 'SMTP connection verified!' };
+    results.smtpTests = [];
 
-      // Send a test email
+    for (const cfg of smtpConfigs) {
+      const testResult = { port: cfg.port, secure: cfg.secure, label: cfg.label, success: false };
       try {
-        await transporter.sendMail({
-          from: `"Email Diagnostic" <${emailConfig.from}>`,
-          to: emailConfig.to,
-          subject: '🔧 Email Diagnostic Test - ' + new Date().toISOString(),
-          text: 'If you received this, SMTP email delivery is working correctly on the live server.'
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: cfg.host,
+          port: cfg.port,
+          secure: cfg.secure,
+          auth: { user: emailConfig.user, pass: emailConfig.pass },
+          tls: { rejectUnauthorized: false }
         });
-        results.smtpTest.testEmailSent = true;
-      } catch (sendErr) {
-        results.smtpTest.testEmailSent = false;
-        results.smtpTest.sendError = sendErr.message;
+
+        await transporter.verify();
+        testResult.success = true;
+        testResult.message = 'Connected!';
+
+        // Send a test email on first successful config
+        if (!results.smtpTest) {
+          try {
+            await transporter.sendMail({
+              from: `"Email Diagnostic" <${emailConfig.from}>`,
+              to: emailConfig.to,
+              subject: '🔧 Email Diagnostic Test - ' + new Date().toISOString(),
+              text: 'If you received this, SMTP email delivery is working correctly on the live server.'
+            });
+            testResult.testEmailSent = true;
+            results.smtpTest = testResult; // Record the working config
+          } catch (sendErr) {
+            testResult.testEmailSent = false;
+            testResult.sendError = sendErr.message;
+          }
+        }
+      } catch (err) {
+        testResult.error = err.message;
+        testResult.code = err.code;
       }
-    } catch (err) {
-      results.smtpTest = { success: false, error: err.message, code: err.code };
-      results.errors.push('SMTP verification failed: ' + err.message);
+      results.smtpTests.push(testResult);
+    }
+
+    if (!results.smtpTest) {
+      results.errors.push('All SMTP ports failed to connect');
     }
   }
 
