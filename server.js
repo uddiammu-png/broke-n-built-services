@@ -499,6 +499,81 @@ app.post('/api/contact', async (req, res) => {
 
 });
 
+// ====== EMAIL DIAGNOSTIC ENDPOINT ======
+app.get('/api/diagnose-email', async (req, res) => {
+  const results = {
+    status: 'checking',
+    config: {
+      resendConfigured: canUseResend,
+      smtpConfigured: canUseSmtp,
+      host: emailConfig.host,
+      port: emailConfig.port,
+      userSet: !!emailConfig.user,
+      passSet: !!emailConfig.pass,
+      to: emailConfig.to,
+      from: emailConfig.from,
+      resendFrom: RESEND_FROM
+    },
+    smtpTest: null,
+    errors: []
+  };
+
+  if (!isEmailConfigured) {
+    results.status = 'not_configured';
+    results.errors.push('No email method configured. Set EMAIL_USER+EMAIL_PASS or RESEND_API_KEY.');
+    return res.json(results);
+  }
+
+  // Test SMTP connectivity
+  if (canUseSmtp) {
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.port === 465,
+        auth: { user: emailConfig.user, pass: emailConfig.pass },
+        tls: { rejectUnauthorized: false }
+      });
+
+      await transporter.verify();
+      results.smtpTest = { success: true, message: 'SMTP connection verified!' };
+
+      // Send a test email
+      try {
+        await transporter.sendMail({
+          from: `"Email Diagnostic" <${emailConfig.from}>`,
+          to: emailConfig.to,
+          subject: '🔧 Email Diagnostic Test - ' + new Date().toISOString(),
+          text: 'If you received this, SMTP email delivery is working correctly on the live server.'
+        });
+        results.smtpTest.testEmailSent = true;
+      } catch (sendErr) {
+        results.smtpTest.testEmailSent = false;
+        results.smtpTest.sendError = sendErr.message;
+      }
+    } catch (err) {
+      results.smtpTest = { success: false, error: err.message, code: err.code };
+      results.errors.push('SMTP verification failed: ' + err.message);
+    }
+  }
+
+  // Test Resend connectivity
+  if (canUseResend) {
+    try {
+      const resend = getResendClient();
+      // Just check if the client is created
+      results.resendTest = { clientReady: true };
+    } catch (err) {
+      results.resendTest = { clientReady: false, error: err.message };
+      results.errors.push('Resend client error: ' + err.message);
+    }
+  }
+
+  results.status = results.errors.length === 0 ? 'ok' : 'issues_found';
+  res.json(results);
+});
+
 // ====== CRAWLER ESSENTIALS (explicit routes for SEO) ======
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain');
