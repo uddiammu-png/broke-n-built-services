@@ -513,103 +513,83 @@ app.post('/api/contact', async (req, res) => {
 
 });
 
-// ====== EMAIL DIAGNOSTIC ENDPOINT ======
-app.get('/api/diagnose-email', async (req, res) => {
-  const results = {
-    status: 'checking',
-    config: {
-      resendConfigured: canUseResend,
-      smtpConfigured: canUseSmtp,
-      host: emailConfig.host,
-      port: emailConfig.port,
-      userSet: !!emailConfig.user,
-      passSet: !!emailConfig.pass,
-      to: emailConfig.to,
-      from: emailConfig.from,
-      resendFrom: RESEND_FROM
+// ====== EMAIL STATUS ENDPOINT (simple config check, no SMTP connection test) ======
+app.get('/api/email-status', (req, res) => {
+  res.json({
+    status: isEmailConfigured ? 'configured' : 'not_configured',
+    methods: {
+      resend: { available: canUseResend, from: RESEND_FROM },
+      smtp: {
+        available: canUseSmtp,
+        host: emailConfig.host,
+        port: emailConfig.port,
+        user: emailConfig.user ? emailConfig.user.substring(0, 3) + '***' : null,
+        to: emailConfig.to
+      }
     },
-    smtpTest: null,
-    errors: []
-  };
+    note: 'SMTP connection test not run here to avoid timeouts. If SMTP shows available, the system will try to send via SMTP on contact form submission.'
+  });
+});
 
-  if (!isEmailConfigured) {
-    results.status = 'not_configured';
-    results.errors.push('No email method configured. Set EMAIL_USER+EMAIL_PASS or RESEND_API_KEY.');
+// Simple SMTP test endpoint (fetched via curl, not browser, to test actual connection)
+app.get('/api/test-smtp', async (req, res) => {
+  // Only allow requests with a secret key to prevent abuse
+  const key = req.query.key;
+  if (key !== 'diag123') {
+    return res.status(403).json({ error: 'Forbidden. Use ?key=diag123 to test.' });
+  }
+
+  const results = { tests: [] };
+  
+  if (!canUseSmtp) {
+    results.error = 'SMTP not configured';
     return res.json(results);
   }
 
-  // Test SMTP connectivity across multiple ports
-  if (canUseSmtp) {
-    const smtpConfigs = [
-      { host: emailConfig.host, port: emailConfig.port, secure: emailConfig.port === 465, label: 'configured port' },
-      { host: 'smtp.gmail.com', port: 465, secure: true, label: 'port 465 (SSL)' },
-      { host: 'smtp.gmail.com', port: 587, secure: false, label: 'port 587 (TLS)' },
-      { host: 'smtp.gmail.com', port: 25, secure: false, label: 'port 25' }
-    ];
+  const ports = [
+    { host: 'smtp.gmail.com', port: 587, secure: false, label: 'port 587' },
+    { host: 'smtp.gmail.com', port: 465, secure: true, label: 'port 465' }
+  ];
 
-    results.smtpTests = [];
-
-    for (const cfg of smtpConfigs) {
-      // Skip port 25 on cloud hosts (usually blocked and causes timeouts)
-      if (cfg.port === 25) continue;
-
-      const testResult = { port: cfg.port, secure: cfg.secure, label: cfg.label, success: false };
-      try {
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport({
-          host: cfg.host,
-          port: cfg.port,
-          secure: cfg.secure,
-          auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
-          tls: { rejectUnauthorized: false },
-          connectionTimeout: 8000
-        });
-
-        await transporter.verify();
-        testResult.success = true;
-        testResult.message = 'Connected!';
-
-        // Send a test email on first successful config
-        if (!results.smtpTest) {
-          try {
-            await transporter.sendMail({
-              from: `"Email Diagnostic" <${emailConfig.from}>`,
-              to: emailConfig.to,
-              subject: '🔧 Email Diagnostic Test - ' + new Date().toISOString(),
-              text: 'If you received this, SMTP email delivery is working correctly on the live server.'
-            });
-            testResult.testEmailSent = true;
-            results.smtpTest = testResult; // Record the working config
-          } catch (sendErr) {
-            testResult.testEmailSent = false;
-            testResult.sendError = sendErr.message;
-          }
-        }
-      } catch (err) {
-        testResult.error = err.message;
-        testResult.code = err.code;
-      }
-      results.smtpTests.push(testResult);
-    }
-
-    if (!results.smtpTest) {
-      results.errors.push('All SMTP ports failed to connect');
-    }
-  }
-
-  // Test Resend connectivity
-  if (canUseResend) {
+  for (const cfg of ports) {
+    const r = { port: cfg.port, label: cfg.label };
     try {
-      const resend = getResendClient();
-      // Just check if the client is created
-      results.resendTest = { clientReady: true };
-    } catch (err) {
-      results.resendTest = { clientReady: false, error: err.message };
-      results.errors.push('Resend client error: ' + err.message);
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.secure,
+        auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000
+      });
+      await transporter.verify();
+      r.success = true;
+      // Send test email on first success
+      if (!results.success) {
+        try {
+          await transporter.sendMail({
+            from: `"SMTP Test" <${emailConfig.from}>`,
+            to: emailConfig.to,
+            subject: 'SMTP Test - ' + Date.now(),
+            text: 'If you see this, SMTP works on Render!'
+          });
+          r.sent = true;
+        } catch (e) {
+          r.sendError = e.message;
+        }
+        results.success = r;
+      }
+    } catch (e) {
+      r.error = e.message;
     }
+    results.tests.push(r);
   }
 
-  results.status = results.errors.length === 0 ? 'ok' : 'issues_found';
+  if (!results.success) {
+    results.error = 'All ports failed';
+  }
+
   res.json(results);
 });
 
