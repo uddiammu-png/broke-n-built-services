@@ -191,9 +191,7 @@ async function sendEmailNotification(inquiry) {
     ];
 
     for (const cfg of smtpConfigs) {
-      // Skip duplicates of already-tested config
-      if (cfg.port === emailConfig.port && cfg.host === emailConfig.host && cfg.secure === (emailConfig.port === 465)) continue;
-      // Skip port 25 on cloud hosts (often blocked and hangs)
+      // Skip port 25 (often blocked on cloud hosts and causes long timeouts)
       if (cfg.port === 25) continue;
 
       try {
@@ -562,7 +560,7 @@ app.get('/api/diagnose-email', async (req, res) => {
           host: cfg.host,
           port: cfg.port,
           secure: cfg.secure,
-          auth: { user: emailConfig.user, pass: emailConfig.pass },
+          auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
           tls: { rejectUnauthorized: false },
           connectionTimeout: 8000
         });
