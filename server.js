@@ -47,28 +47,30 @@ app.use(express.static(path.join(__dirname)));
 
 // ====== EMAIL NOTIFICATION CONFIG ======
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
 const emailConfig = {
-  host: process.env.EMAIL_HOST,
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.EMAIL_PORT || '587'),
   user: process.env.EMAIL_USER,
   pass: process.env.EMAIL_PASS,
   to: process.env.EMAIL_TO || 'brokenbuiltservices@gmail.com',
-  from: process.env.EMAIL_FROM || 'noreply@broke-n-built-services.com'
+  from: process.env.EMAIL_FROM || 'brokenbuiltservices@gmail.com'
 };
-
-// Use Resend SDK if available (production on Render), otherwise fall back to SMTP nodemailer (local dev)
-const useResend = !!RESEND_API_KEY;
-const isEmailConfigured = useResend || !!(emailConfig.host && emailConfig.user && emailConfig.pass);
 
 // Lazy-loaded Resend client
 let resendClient = null;
 function getResendClient() {
-  if (!resendClient && useResend) {
+  if (!resendClient && RESEND_API_KEY) {
     const { Resend } = require('resend');
     resendClient = new Resend(RESEND_API_KEY);
   }
   return resendClient;
 }
+
+// Determine which sending methods are available
+const canUseResend = !!RESEND_API_KEY;
+const canUseSmtp = !!(emailConfig.user && emailConfig.pass);
+const isEmailConfigured = canUseResend || canUseSmtp;
 
 function buildEmailHtml(inquiry) {
   const mobileDisplay = inquiry.phone && inquiry.phone !== 'Not provided' ? `<a href="tel:${inquiry.phone}">${inquiry.phone}</a>` : 'Not provided';
@@ -144,10 +146,7 @@ function buildEmailHtml(inquiry) {
 
 async function sendEmailNotification(inquiry) {
   if (!isEmailConfigured) {
-    const msg = useResend
-      ? '⚠️  Resend API key not set. Set RESEND_API_KEY in your .env'
-      : '⚠️  Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in .env';
-    console.log(msg);
+    console.log('⚠️  Email not configured. Set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS in .env');
     return false;
   }
 
@@ -155,12 +154,14 @@ async function sendEmailNotification(inquiry) {
     ? inquiry.service.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     : 'Not specified'}`;
 
-  try {
-    if (useResend) {
-      // Use Resend SDK (production on Render — works via HTTPS, not SMTP)
+  let lastError = null;
+
+  // ── ATTEMPT 1: Resend (if available) ──────────────────────────
+  if (canUseResend) {
+    try {
       const resend = getResendClient();
       const { error } = await resend.emails.send({
-        from: `"Broke N Built Website" <${emailConfig.from}>`,
+        from: `"Broke N Built Website" <${RESEND_FROM}>`,
         to: [emailConfig.to],
         subject,
         html: buildEmailHtml(inquiry)
@@ -168,19 +169,27 @@ async function sendEmailNotification(inquiry) {
 
       if (error) {
         console.error('❌ Resend API error:', error.message || JSON.stringify(error));
-        return false;
+        lastError = error;
+      } else {
+        console.log('✅ Email notification sent via Resend to', emailConfig.to);
+        return true;
       }
+    } catch (err) {
+      console.error('❌ Resend exception:', err.message);
+      lastError = err;
+    }
+  }
 
-      console.log('✅ Email notification sent via Resend to', emailConfig.to);
-      return true;
-    } else {
-      // Fall back to nodemailer SMTP (local dev)
+  // ── ATTEMPT 2: Nodemailer SMTP (fallback if Resend unavailable or failed) ─
+  if (canUseSmtp) {
+    try {
       const nodemailer = require('nodemailer');
       const transporter = nodemailer.createTransport({
         host: emailConfig.host,
         port: emailConfig.port,
         secure: emailConfig.port === 465,
-        auth: { user: emailConfig.user, pass: emailConfig.pass }
+        auth: { user: emailConfig.user, pass: emailConfig.pass },
+        tls: { rejectUnauthorized: false }
       });
 
       await transporter.sendMail({
@@ -192,11 +201,20 @@ async function sendEmailNotification(inquiry) {
 
       console.log('✅ Email notification sent via SMTP to', emailConfig.to);
       return true;
+    } catch (err) {
+      console.error('❌ SMTP exception:', err.message);
+      lastError = err;
     }
-  } catch (err) {
-    console.error('❌ Failed to send email:', err.message);
-    return false;
   }
+
+  // Both methods failed
+  const summary = canUseResend && canUseSmtp
+    ? '❌ Both Resend and SMTP failed to send email.'
+    : canUseResend
+      ? '❌ Resend failed (no SMTP fallback configured).'
+      : '❌ SMTP failed (no Resend fallback configured).';
+  console.error(summary, lastError?.message || '');
+  return false;
 }
 
 // ====== AI CHATBOT ENDPOINT ======

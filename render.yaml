@@ -24,6 +24,14 @@ services:
         value: brokenbuiltservices@gmail.com
       - key: EMAIL_FROM
         value: brokenbuiltservices@gmail.com
+      # Resend (recommended for production — sends via HTTPS, no SMTP port issues)
+      - key: RESEND_API_KEY
+        sync: false
+      # When using Resend, RESEND_FROM must be a domain verified in your Resend account.
+      # Default is 'onboarding@resend.dev' which works for testing but shows a footer.
+      - key: RESEND_FROM
+        sync: false
+
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
