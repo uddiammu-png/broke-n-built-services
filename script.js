@@ -133,6 +133,92 @@ async function loadPageSilent(path) {
   }
 }
 
+/* ====== SCROLL ANIMATION SYSTEM ====== */
+function initScrollAnimations() {
+  // Disconnect old observer if any
+  if (window._animObserver) window._animObserver.disconnect();
+
+  // Find all elements that need animation (not already visible)
+  const animTargets = document.querySelectorAll([
+    '.anim-fade-up',
+    '.anim-fade-down',
+    '.anim-fade-left',
+    '.anim-fade-right',
+    '.anim-scale-in',
+    '.anim-zoom-in',
+    '.anim-flip-up'
+  ].join(','));
+
+  if (animTargets.length === 0) return;
+
+  // Mark all as hidden initially
+  animTargets.forEach(el => {
+    if (!el.classList.contains('anim-visible')) {
+      el.classList.add('anim-hidden');
+    }
+  });
+
+  // Handle stagger containers: ensure children are individually observed
+  const staggerContainers = document.querySelectorAll('.anim-stagger');
+  staggerContainers.forEach(container => {
+    const children = container.children;
+    Array.from(children).forEach(child => {
+      // Apply a default fade-up if no animation class is set
+      if (!child.classList.contains('anim-fade-up') &&
+          !child.classList.contains('anim-fade-down') &&
+          !child.classList.contains('anim-fade-left') &&
+          !child.classList.contains('anim-fade-right') &&
+          !child.classList.contains('anim-scale-in') &&
+          !child.classList.contains('anim-zoom-in') &&
+          !child.classList.contains('anim-flip-up')) {
+        child.classList.add('anim-fade-up');
+      }
+      if (!child.classList.contains('anim-visible')) {
+        child.classList.add('anim-hidden');
+      }
+    });
+  });
+
+  // Collect all individual elements to observe (targets + stagger children)
+  const allTargets = [];
+  document.querySelectorAll([
+    '.anim-fade-up',
+    '.anim-fade-down',
+    '.anim-fade-left',
+    '.anim-fade-right',
+    '.anim-scale-in',
+    '.anim-zoom-in',
+    '.anim-flip-up'
+  ].join(',')).forEach(el => {
+    if (!el.classList.contains('anim-visible')) {
+      allTargets.push(el);
+    }
+  });
+
+  if (allTargets.length === 0) return;
+
+  // Use IntersectionObserver with better thresholds for mobile
+  const isMobile = window.innerWidth <= 768;
+  const threshold = isMobile ? 0.05 : 0.1;
+  const rootMargin = isMobile ? '0px 0px -30px 0px' : '0px 0px -60px 0px';
+
+  window._animObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        el.classList.remove('anim-hidden');
+        el.classList.add('anim-visible');
+        window._animObserver.unobserve(el);
+      }
+    });
+  }, {
+    threshold: threshold,
+    rootMargin: rootMargin
+  });
+
+  allTargets.forEach(el => window._animObserver.observe(el));
+}
+
 /* ====== SHARED HELPER: update head meta from parsed doc ====== */
 function updateHeadMeta(doc) {
   // Update page-specific <style> tags
@@ -241,23 +327,8 @@ function initComponents() {
     window._counterObserver.observe(heroSection);
   }
 
-  // ====== INTERSECTION OBSERVER FOR FADE-IN ======
-  const fadeElements = document.querySelectorAll('.section-header, .about-content, .services-grid, .contact-content');
-  if (window._fadeObserver) window._fadeObserver.disconnect();
-
-  if (fadeElements.length > 0) {
-    fadeElements.forEach(el => el.classList.add('fade-in'));
-
-    window._fadeObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-        }
-      });
-    }, { threshold: 0.1 });
-
-    fadeElements.forEach(el => window._fadeObserver.observe(el));
-  }
+  // ====== SCROLL ANIMATIONS ======
+  initScrollAnimations();
 
   // ====== CONTACT FORM ======
   const contactForm = document.getElementById('contactForm');

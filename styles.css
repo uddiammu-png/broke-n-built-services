@@ -1300,16 +1300,150 @@ img { max-width: 100%; display: block; }
   100% { transform: translateX(350%); }
 }
 
-/* ====== ANIMATIONS ====== */
-.fade-in {
+/* ====== SCROLL ANIMATIONS ====== */
+
+/* All animation elements start invisible to prevent flash */
+.anim-fade-up,
+.anim-fade-down,
+.anim-fade-left,
+.anim-fade-right,
+.anim-scale-in,
+.anim-zoom-in,
+.anim-flip-up {
   opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
-.fade-in.visible {
-  opacity: 1;
+/* Visible state — applied when element scrolls into view (via JS) */
+.anim-visible {
+  opacity: 1 !important;
+  pointer-events: all !important;
+}
+
+/* Hidden state only needed for JS-added safety */
+.anim-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ====== FADE UP ====== */
+.anim-fade-up {
+  transform: translateY(50px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-fade-up.anim-visible {
   transform: translateY(0);
+}
+
+/* ====== FADE DOWN ====== */
+.anim-fade-down {
+  transform: translateY(-40px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-fade-down.anim-visible {
+  transform: translateY(0);
+}
+
+/* ====== FADE LEFT (slide in from left) ====== */
+.anim-fade-left {
+  transform: translateX(-60px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-fade-left.anim-visible {
+  transform: translateX(0);
+}
+
+/* ====== FADE RIGHT (slide in from right) ====== */
+.anim-fade-right {
+  transform: translateX(60px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-fade-right.anim-visible {
+  transform: translateX(0);
+}
+
+/* ====== SCALE IN (subtle scale up with fade) ====== */
+.anim-scale-in {
+  transform: scale(0.85);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-scale-in.anim-visible {
+  transform: scale(1);
+}
+
+/* ====== ZOOM IN (more dramatic scale with fade) ====== */
+.anim-zoom-in {
+  transform: scale(0.6);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-zoom-in.anim-visible {
+  transform: scale(1);
+}
+
+/* ====== FLIP UP (perspective tilt) ====== */
+.anim-flip-up {
+  transform: perspective(600px) rotateX(15deg);
+  transform-origin: bottom center;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.anim-flip-up.anim-visible {
+  transform: perspective(600px) rotateX(0deg);
+}
+
+/* ====== STAGGER DELAYS ====== */
+/* Children of a stagger container get sequential delays */
+.anim-stagger > *:nth-child(1) { transition-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { transition-delay: 80ms; }
+.anim-stagger > *:nth-child(3) { transition-delay: 160ms; }
+.anim-stagger > *:nth-child(4) { transition-delay: 240ms; }
+.anim-stagger > *:nth-child(5) { transition-delay: 320ms; }
+.anim-stagger > *:nth-child(6) { transition-delay: 400ms; }
+.anim-stagger > *:nth-child(7) { transition-delay: 480ms; }
+.anim-stagger > *:nth-child(8) { transition-delay: 560ms; }
+.anim-stagger > *:nth-child(9) { transition-delay: 640ms; }
+.anim-stagger > *:nth-child(10) { transition-delay: 720ms; }
+
+/* Individual delay modifiers */
+.anim-delay-100 { transition-delay: 100ms; }
+.anim-delay-200 { transition-delay: 200ms; }
+.anim-delay-300 { transition-delay: 300ms; }
+.anim-delay-400 { transition-delay: 400ms; }
+.anim-delay-500 { transition-delay: 500ms; }
+.anim-delay-600 { transition-delay: 600ms; }
+
+/* ====== STAGGER ANIMATION FOR SERVICE DETAIL ITEMS ====== */
+.service-detail.anim-fade-up {
+  transition-duration: 0.6s;
+}
+/* Service detail items stagger by index */
+.service-detail:nth-child(1) { transition-delay: 0ms; }
+.service-detail:nth-child(2) { transition-delay: 100ms; }
+.service-detail:nth-child(3) { transition-delay: 200ms; }
+.service-detail:nth-child(4) { transition-delay: 300ms; }
+.service-detail:nth-child(5) { transition-delay: 400ms; }
+.service-detail:nth-child(6) { transition-delay: 500ms; }
+.service-detail:nth-child(7) { transition-delay: 600ms; }
+.service-detail:nth-child(8) { transition-delay: 700ms; }
+.service-detail:nth-child(9) { transition-delay: 800ms; }
+
+/* ====== PARALLAX-LITE ====== */
+.anim-parallax {
+  transition: transform 0.1s linear;
+  will-change: transform;
+}
+
+/* ====== REDUCED MOTION PREFERENCE ====== */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-fade-down, .anim-fade-left, .anim-fade-right,
+  .anim-scale-in, .anim-zoom-in, .anim-flip-up {
+    opacity: 1;
+    transform: none !important;
+    transition: none !important;
+  }
+  .anim-hidden {
+    opacity: 1;
+    pointer-events: all;
+    transform: none !important;
+  }
 }
 
 /* ====== RESPONSIVE ====== */

@@ -3,16 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const session = require('express-session');
 const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-const ADMIN_ROUTE = (process.env.ADMIN_ROUTE || 'admin').replace(/^\/+|\/+$/g, '');
-const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
-const ADMIN_SYNC_URL = process.env.ADMIN_SYNC_URL || '';
-const SYNC_SECRET = process.env.SYNC_SECRET || '';
 const INQUIRIES_FILE = path.join(__dirname, 'inquiries', 'inquiries.json');
 
 // ====== MIGRATE OLD INDIVIDUAL FILES (runs once at startup) ======
@@ -44,106 +38,12 @@ const INQUIRIES_FILE = path.join(__dirname, 'inquiries', 'inquiries.json');
   }
 })();
 
-// ====== SESSION SETUP ======
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'broke-n-built-admin-secret-2025',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: false,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
-  }
-}));
-
 // ====== MIDDLEWARE ======
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// ====== ADMIN AUTH MIDDLEWARE ======
-function requireAdmin(req, res, next) {
-  if (req.session && req.session.isAdmin) return next();
-  res.status(401).json({ error: 'Unauthorized. Please log in.' });
-}
 
-// ====== ADMIN AUTH ENDPOINTS ======
-app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body;
-  if (password === ADMIN_PASSWORD) {
-    req.session.isAdmin = true;
-    return res.json({ success: true });
-  }
-  res.status(401).json({ error: 'Invalid password' });
-});
-
-app.post('/api/admin/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
-
-app.get('/api/admin/check', (req, res) => {
-  res.json({
-    authenticated: !!(req.session && req.session.isAdmin),
-    emailConfigured: isEmailConfigured,
-    adminName: ADMIN_NAME
-  });
-});
-
-// ====== ADMIN API ENDPOINTS (Protected) ======
-app.get('/api/admin/stats', requireAdmin, async (req, res) => {
-  try {
-    const stats = await db.getInquiryStats();
-    res.json(stats);
-  } catch (err) {
-    console.error('Error fetching stats:', err);
-    res.status(500).json({ error: 'Failed to fetch stats' });
-  }
-});
-
-app.get('/api/admin/inquiries', requireAdmin, async (req, res) => {
-  try {
-    const inquiries = await db.loadInquiries();
-    res.json(inquiries);
-  } catch (err) {
-    console.error('Error fetching inquiries:', err);
-    res.status(500).json({ error: 'Failed to fetch inquiries' });
-  }
-});
-
-app.put('/api/admin/inquiries/:id/read', requireAdmin, async (req, res) => {
-  try {
-    const inquiry = await db.updateInquiry(req.params.id, { read: true });
-    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
-    res.json({ success: true, inquiry });
-  } catch (err) {
-    console.error('Error marking inquiry as read:', err);
-    res.status(500).json({ error: 'Failed to update inquiry' });
-  }
-});
-
-app.put('/api/admin/inquiries/:id/unread', requireAdmin, async (req, res) => {
-  try {
-    const inquiry = await db.updateInquiry(req.params.id, { read: false });
-    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' });
-    res.json({ success: true, inquiry });
-  } catch (err) {
-    console.error('Error marking inquiry as unread:', err);
-    res.status(500).json({ error: 'Failed to update inquiry' });
-  }
-});
-
-app.delete('/api/admin/inquiries/:id', requireAdmin, async (req, res) => {
-  try {
-    const deleted = await db.deleteInquiry(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Inquiry not found' });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error deleting inquiry:', err);
-    res.status(500).json({ error: 'Failed to delete inquiry' });
-  }
-});
 
 // ====== EMAIL NOTIFICATION CONFIG ======
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
@@ -338,7 +238,7 @@ SERVICES:
 
 ABOUT: The company transforms damaged, outdated, and incomplete spaces into functional, modern, and visually impressive environments. They focus on quality craftsmanship, smart design, and timely execution for residential, commercial, and workspace projects.
 
-PORTFOLIO / PROJECTS (150+ completed projects):
+PORTFOLIO / PROJECTS (50+ completed projects):
 
 Residential Projects:
 1. KSR CORDILIA - Premium residential apartment complex with modern finishes, false ceiling installations, and complete interior fit-out.
@@ -418,7 +318,7 @@ function generateSmartResponse(message) {
       <li>📋 <strong>Service inquiries</strong> — learn about our offerings</li>
       <li>💰 <strong>Pricing info</strong> — get cost estimates</li>
       <li>📅 <strong>Book a visit</strong> — schedule a free consultation</li>
-      <li>🏠 <strong>Portfolio</strong> — see our 150+ completed projects</li>
+      <li>🏠 <strong>Portfolio</strong> — see our 50+ completed projects</li>
     </ul>
     <p>What would you like to know? 😊</p>`;
   }
@@ -503,7 +403,7 @@ function generateSmartResponse(message) {
 
   if (msg.includes('project') || msg.includes('portfolio') || msg.includes('work done') || msg.includes('completed') || msg.includes('past work') || msg.includes('experience') || msg.includes('cordilia') || msg.includes('sharadha') || msg.includes('allseasons') || msg.includes('zanith') || msg.includes('vario') || msg.includes('karle') || msg.includes('soliza') || msg.includes('levelle') || msg.includes('northstar')) {
     return `<p>🏗️ <strong>Our Project Portfolio</strong></p>
-    <p>We've completed <strong>150+ projects</strong> across Bangalore! Here's a selection:</p>
+    <p>We've completed <strong>50+ projects</strong> across Bangalore! Here's a selection:</p>
     <p><strong>🏠 Residential:</strong></p>
     <ul>
       <li><strong>KSR CORDILIA</strong> — Premium apartment complex</li>
@@ -528,7 +428,7 @@ function generateSmartResponse(message) {
   <p>Here's how we can help:</p>
   <ul>
     <li>🏠 <strong>Services:</strong> Renovation, false ceiling, painting, flooring, partitions, electrical/plumbing, custom interiors, and complete transformations</li>
-    <li>🏗️ <strong>Portfolio:</strong> 150+ projects completed — residential & commercial</li>
+    <li>🏗️ <strong>Portfolio:</strong> 50+ projects completed — residential & commercial</li>
     <li>📍 <strong>Location:</strong> Bangalore, India</li>
     <li>📞 <strong>Call:</strong> +91 7019300855</li>
     <li>📧 <strong>Email:</strong> brokenbuiltservices@gmail.com</li>
@@ -536,138 +436,7 @@ function generateSmartResponse(message) {
   <p>Could you tell me more about your project? I'd be happy to provide specific information! 🛠️</p>`;
 }
 
-// ====== EMAIL CONFIG ENDPOINT ======
-app.get('/api/admin/email-status', requireAdmin, (req, res) => {
-  res.json({
-    configured: isEmailConfigured,
-    method: useResend ? 'resend' : 'smtp',
-    host: useResend ? 'api.resend.com' : emailConfig.host,
-    to: emailConfig.to,
-    from: emailConfig.from
-  });
-});
 
-// ====== EMAIL DIAGNOSTIC ENDPOINT ======
-app.get('/api/admin/diagnose-email', requireAdmin, async (req, res) => {
-  const diagnostic = {
-    configured: isEmailConfigured,
-    method: useResend ? 'resend' : 'smtp',
-    to: emailConfig.to,
-    from: emailConfig.from,
-    resendKeySet: useResend,
-    resendKeyPrefix: useResend ? RESEND_API_KEY.slice(0, 5) + '...' : null
-  };
-
-  if (!isEmailConfigured) {
-    diagnostic.error = useResend
-      ? 'Resend not configured. Set RESEND_API_KEY in your environment variables.'
-      : 'Email not configured. Set EMAIL_HOST, EMAIL_USER, EMAIL_PASS in your environment variables.';
-    return res.json(diagnostic);
-  }
-
-  if (useResend) {
-    // —— Test Resend API ——
-    try {
-      const resend = getResendClient();
-
-      // Test 1: Send a test email via Resend
-      diagnostic.sendTest = { label: 'Resend API Test' };
-      try {
-        const start = Date.now();
-        const { data, error } = await resend.emails.send({
-          from: `"Email Diagnostic" <${emailConfig.from}>`,
-          to: [emailConfig.to],
-          subject: `🧪 Resend Diagnostic Test — ${new Date().toLocaleString()}`,
-          text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, Resend is working correctly from the Render server.\n\nSent at: ${new Date().toISOString()}`
-        });
-
-        if (error) {
-          diagnostic.sendTest.passed = false;
-          diagnostic.sendTest.error = error.message || JSON.stringify(error);
-        } else {
-          diagnostic.sendTest.passed = true;
-          diagnostic.sendTest.ms = Date.now() - start;
-          diagnostic.sendTest.id = data?.id || 'sent';
-        }
-      } catch (err) {
-        diagnostic.sendTest.passed = false;
-        diagnostic.sendTest.error = err.message;
-      }
-
-      diagnostic.conclusion = diagnostic.sendTest.passed
-        ? '✅ Resend is working. Check your inbox (and Spam/Promotions) for the test email.'
-        : '❌ Resend API call failed. Check: your RESEND_API_KEY is correct, your domain is verified on Resend, and your DNS records (SPF/DKIM) are set up.';
-
-    } catch (err) {
-      diagnostic.criticalError = err.message;
-      diagnostic.conclusion = '❌ Fatal error running Resend diagnostic.';
-    }
-  } else {
-    // —— Test SMTP connection (fallback for local dev) ——
-    diagnostic.host = emailConfig.host;
-    diagnostic.port = emailConfig.port;
-    diagnostic.user = emailConfig.user;
-    diagnostic.passLength = emailConfig.pass ? emailConfig.pass.length : 0;
-    diagnostic.passHasSpaces = emailConfig.pass ? emailConfig.pass.includes(' ') : false;
-
-    try {
-      const nodemailer = require('nodemailer');
-
-      const transporter = nodemailer.createTransport({
-        host: emailConfig.host,
-        port: emailConfig.port,
-        secure: emailConfig.port === 465,
-        auth: { user: emailConfig.user, pass: emailConfig.pass },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 10000
-      });
-
-      // Test 1: Verify SMTP connection
-      diagnostic.connectionTest = { label: 'SMTP Connection (verify())' };
-      try {
-        const start = Date.now();
-        await transporter.verify();
-        diagnostic.connectionTest.passed = true;
-        diagnostic.connectionTest.ms = Date.now() - start;
-      } catch (err) {
-        diagnostic.connectionTest.passed = false;
-        diagnostic.connectionTest.error = err.message;
-        diagnostic.connectionTest.code = err.code || null;
-        diagnostic.connectionTest.command = err.command || null;
-      }
-
-      // Test 2: Send a test email
-      diagnostic.sendTest = { label: 'Send Test Email' };
-      try {
-        const start = Date.now();
-        const info = await transporter.sendMail({
-          from: `"SMTP Diagnostic" <${emailConfig.from}>`,
-          to: emailConfig.to,
-          subject: `🧪 SMTP Diagnostic Test — ${new Date().toLocaleString()}`,
-          text: `This is an automated diagnostic test from BROKE N BUILT SERVICES.\n\nIf you received this, the SMTP email system is working correctly from the server.\n\nSent at: ${new Date().toISOString()}`
-        });
-        diagnostic.sendTest.passed = true;
-        diagnostic.sendTest.ms = Date.now() - start;
-        diagnostic.sendTest.messageId = info.messageId;
-      } catch (err) {
-        diagnostic.sendTest.passed = false;
-        diagnostic.sendTest.error = err.message;
-        diagnostic.sendTest.code = err.code || null;
-        diagnostic.sendTest.command = err.command || null;
-      }
-
-      diagnostic.conclusion = diagnostic.connectionTest.passed && diagnostic.sendTest.passed
-        ? '✅ SMTP is fully working. Check your Spam/Promotions folder — emails may be filtered.'
-        : '❌ SMTP has issues. See test results above for details.';
-
-    } catch (err) {
-      diagnostic.criticalError = err.message;
-      diagnostic.conclusion = '❌ Fatal error running SMTP diagnostic.';
-    }
-  }
-
-  res.json(diagnostic);
-});
 
 // ====== CONTACT FORM ENDPOINT ======
 app.post('/api/contact', async (req, res) => {
@@ -709,37 +478,7 @@ app.post('/api/contact', async (req, res) => {
     console.error('Background email failed:', err.message);
   });
 
-  // Sync inquiry to standalone admin server (if configured) — in background
-  if (ADMIN_SYNC_URL) {
-    console.log('🔄 Syncing inquiry to admin server:', ADMIN_SYNC_URL);
-    try {
-      const https = require('https');
-      const http = require('http');
-      const transport = ADMIN_SYNC_URL.startsWith('https') ? https : http;
-      const body = JSON.stringify(inquiry);
-      const url = new URL('/api/sync/inquiry', ADMIN_SYNC_URL);
-      const syncReq = transport.request(url.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          ...(SYNC_SECRET ? { 'x-sync-token': SYNC_SECRET } : {})
-        },
-        timeout: 5000
-      }, (syncRes) => {
-        console.log('🔄 Synced inquiry to admin server:', syncRes.statusCode);
-      });
-      syncReq.on('error', (err) => {
-        console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-      });
-      syncReq.write(body);
-      syncReq.end();
-    } catch (err) {
-      console.log('⚠️  Failed to sync inquiry to admin server:', err.message);
-    }
-  } else if (process.env.NODE_ENV === 'production') {
-    console.log('⚠️  ADMIN_SYNC_URL not set — inquiry NOT synced to admin server');
-  }
+
 });
 
 // ====== CRAWLER ESSENTIALS (explicit routes for SEO) ======
@@ -767,10 +506,6 @@ app.get(Object.keys(pages), (req, res) => {
   if (page) res.sendFile(path.join(__dirname, page));
 });
 
-app.get(`/${ADMIN_ROUTE}`, (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
 // ====== 404 HANDLER (serves proper 404 page, not index.html) ======
 app.use((req, res) => {
   // If it's an API route, return JSON
@@ -788,7 +523,6 @@ app.listen(PORT, async () => {
 ║   🏗️  BROKE N BUILT SERVICES - Website Server        ║
 ║                                                      ║
 ║   🌐  http://localhost:${PORT}                         ║
-║   🔐  Admin: http://localhost:${PORT}/${ADMIN_ROUTE}      ║
 ║   📧  brokenbuiltservices@gmail.com                  ║
 ║   📞  +91 7019300855                                 ║
 ║                                                      ║
@@ -808,9 +542,4 @@ app.listen(PORT, async () => {
 
   const stats = await db.getInquiryStats();
   console.log(`📊  ${stats.total} inquiries stored${db.isUsingPostgres() ? ' (PostgreSQL)' : ''}`);
-
-  if (!ADMIN_SYNC_URL && process.env.NODE_ENV === 'production') {
-    console.log('⚠️  ADMIN_SYNC_URL not set — inquiries will NOT be synced to admin server');
-    console.log('   Set ADMIN_SYNC_URL in your .env or Render environment variables');
-  }
 });
