@@ -318,6 +318,35 @@ app.post('/api/contact', async (req, res) => {
       console.error('Failed to save backup inquiry file:', err.message);
     }
   })();
+
+  // Send email notification via Resend
+  (async () => {
+    try {
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) return;
+      const Resend = require('resend');
+      const resend = new Resend(apiKey);
+      await resend.emails.send({
+        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+        to: 'brokenbuiltservices@gmail.com',
+        subject: `📩 New Inquiry from ${inquiry.name}`,
+        html: `
+          <h2>New Contact Inquiry</h2>
+          <table style="border-collapse:collapse;width:100%;max-width:500px">
+            <tr><td style="padding:8px;background:#f5f5f5;font-weight:bold">Name</td><td style="padding:8px">${inquiry.name}</td></tr>
+            <tr><td style="padding:8px;background:#f5f5f5;font-weight:bold">Email</td><td style="padding:8px">${inquiry.email}</td></tr>
+            <tr><td style="padding:8px;background:#f5f5f5;font-weight:bold">Phone</td><td style="padding:8px">${inquiry.phone}</td></tr>
+            <tr><td style="padding:8px;background:#f5f5f5;font-weight:bold">Service</td><td style="padding:8px">${inquiry.service}</td></tr>
+            <tr><td style="padding:8px;background:#f5f5f5;font-weight:bold">Message</td><td style="padding:8px">${inquiry.message}</td></tr>
+          </table>
+          <p style="color:#888;font-size:12px">Received at ${inquiry.timestamp}</p>
+        `
+      });
+      console.log('📧 Email notification sent via Resend');
+    } catch (err) {
+      console.error('Failed to send email notification:', err.message);
+    }
+  })();
 });
 
 // ====== CRAWLER ESSENTIALS (explicit routes for SEO) ======
