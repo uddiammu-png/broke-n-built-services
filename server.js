@@ -191,8 +191,10 @@ async function sendEmailNotification(inquiry) {
     ];
 
     for (const cfg of smtpConfigs) {
-      // Skip duplicates
+      // Skip duplicates of already-tested config
       if (cfg.port === emailConfig.port && cfg.host === emailConfig.host && cfg.secure === (emailConfig.port === 465)) continue;
+      // Skip port 25 on cloud hosts (often blocked and hangs)
+      if (cfg.port === 25) continue;
 
       try {
         const nodemailer = require('nodemailer');
@@ -200,8 +202,9 @@ async function sendEmailNotification(inquiry) {
           host: cfg.host,
           port: cfg.port,
           secure: cfg.secure,
-          auth: { user: emailConfig.user, pass: emailConfig.pass },
-          tls: { rejectUnauthorized: false }
+          auth: { user: emailConfig.user, pass: emailConfig.pass.replace(/ /g, '') },
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 8000
         });
 
         await transporter.sendMail({
@@ -549,6 +552,9 @@ app.get('/api/diagnose-email', async (req, res) => {
     results.smtpTests = [];
 
     for (const cfg of smtpConfigs) {
+      // Skip port 25 on cloud hosts (usually blocked and causes timeouts)
+      if (cfg.port === 25) continue;
+
       const testResult = { port: cfg.port, secure: cfg.secure, label: cfg.label, success: false };
       try {
         const nodemailer = require('nodemailer');
@@ -557,7 +563,8 @@ app.get('/api/diagnose-email', async (req, res) => {
           port: cfg.port,
           secure: cfg.secure,
           auth: { user: emailConfig.user, pass: emailConfig.pass },
-          tls: { rejectUnauthorized: false }
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 8000
         });
 
         await transporter.verify();
